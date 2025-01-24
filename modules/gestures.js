@@ -150,108 +150,7 @@ function createControlPanel() {
     };
 }
 
-async function initializeMediaPipe() {
-    const hands = new Hands({
-        locateFile: (file) => {
-            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-        }
-    });
-
-    hands.setOptions({
-        maxNumHands: 1,
-        modelComplexity: 1,
-        minDetectionConfidence: 0.5,
-        minTrackingConfidence: 0.5
-    });
-
-    return hands;
-}
-
 function startMotionDetection(videoElement, statusText) {
-    // Initialize MediaPipe Hands
-    let hands;
-    initializeMediaPipe().then(handsInstance => {
-        hands = handsInstance;
-        hands.onResults(onHandResults);
-    });
-
-    // Add hand gesture state tracking
-    let lastGesture = null;
-    let gestureStartTime = 0;
-    const GESTURE_DELAY = 1000; // Delay between gestures in ms
-
-    function onHandResults(results) {
-        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-            const hand = results.multiHandLandmarks[0];
-            const gesture = detectHandGesture(hand);
-            
-            const now = Date.now();
-            if (gesture && gesture !== lastGesture && now - gestureStartTime > GESTURE_DELAY) {
-                handleHandGesture(gesture);
-                lastGesture = gesture;
-                gestureStartTime = now;
-            }
-        }
-    }
-
-    function detectHandGesture(hand) {
-        // Thumb tip is landmark 4
-        const thumb = hand[4];
-        // Index finger tip is landmark 8
-        const index = hand[8];
-        // Middle finger tip is landmark 12
-        const middle = hand[12];
-        
-        // Detect pointing up
-        if (index.y < hand[5].y && middle.y > hand[9].y) {
-            return 'pointUp';
-        }
-        // Detect pointing down
-        if (index.y > hand[5].y && middle.y > hand[9].y) {
-            return 'pointDown';
-        }
-        // Detect pointing left
-        if (index.x < hand[5].x && middle.x > hand[9].x) {
-            return 'pointLeft';
-        }
-        // Detect pointing right
-        if (index.x > hand[5].x && middle.x > hand[9].x) {
-            return 'pointRight';
-        }
-        // Detect click (thumb and index finger pinch)
-        const distance = Math.hypot(thumb.x - index.x, thumb.y - index.y);
-        if (distance < 0.1) {
-            return 'click';
-        }
-        
-        return null;
-    }
-
-    function handleHandGesture(gesture) {
-        switch (gesture) {
-            case 'pointUp':
-                window.scrollBy({ top: -300, behavior: 'smooth' });
-                showGestureFeedback('⬆️ Scrolling up (hand)');
-                break;
-            case 'pointDown':
-                window.scrollBy({ top: 300, behavior: 'smooth' });
-                showGestureFeedback('⬇️ Scrolling down (hand)');
-                break;
-            case 'pointLeft':
-                showGestureFeedback('⬅️ Previous page (hand)');
-                setTimeout(() => window.history.back(), 500);
-                break;
-            case 'pointRight':
-                showGestureFeedback('➡️ Next page (hand)');
-                setTimeout(() => window.history.forward(), 500);
-                break;
-            case 'click':
-                showGestureFeedback('🖱️ Click (hand)');
-                clickFocusedElement();
-                break;
-        }
-    }
-
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
     let previousPixel = null;
@@ -402,12 +301,9 @@ function startMotionDetection(videoElement, statusText) {
         return pixels.reduce((a, b) => a + b, 0) / pixels.length;
     }
 
-    const runDetection = async () => {
+    const runDetection = () => {
         detectMotion();
         if (isTracking) {
-            if (hands) {
-                await hands.send({image: videoElement});
-            }
             requestAnimationFrame(runDetection);
         }
     };
@@ -417,7 +313,6 @@ function startMotionDetection(videoElement, statusText) {
         isTracking = false;
         if (scrollTimeout) clearTimeout(scrollTimeout);
         if (gestureTimeout) clearTimeout(gestureTimeout);
-        if (hands) hands.close();
     };
 }
 
