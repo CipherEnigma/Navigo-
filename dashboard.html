@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accessibility Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="lang.js"></script>
     <script src="dashboard.js"></script>
@@ -34,16 +35,19 @@
 
         <section class="p-6 border-t border-gray-700">
             <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h3m-3-8a9 9 0 01-9 9m9-9a9 9 0 00-9-9m0 9h9m-9 0c0 5.523 4.477 10 10 10m0-10a9.963 9.963 0 014.708-8.458" />
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h3m-3-8a9 9 0 01-9 9m9-9a9 9 0 00-9-9m0 9h9m-9 0c0 5.523 4.477 10 10 10m0-10a9.963 9.963 0 014.708-8.458" />
                 </svg>
                 <h2 class="text-xl font-semibold text-indigo-300">Language Selection</h2>
             </div>
-            
+
             <div>
                 <label class="block text-gray-400 mb-2">Choose Language</label>
                 <div class="relative">
-                    <select id="languageSelector" class="w-full bg-gray-700 text-gray-200 py-2 px-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 appearance-none">
+                    <select id="languageSelector"
+                        class="w-full bg-gray-700 text-gray-200 py-2 px-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 appearance-none">
                         <!-- Languages will be dynamically populated by JavaScript -->
                     </select>
                     <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
