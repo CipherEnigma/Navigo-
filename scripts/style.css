@@ -1,0 +1,19 @@
+.navigator-feedback {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 10px 20px;
+    border-radius: 5px;
+    z-index: 10000;
+    background: #333;
+    color: white;
+  }
+  
+  .navigator-feedback.success {
+    background: #4CAF50;
+  }
+  
+  .navigator-feedback.info {
+    background: #2196F3;
+    
+  }
