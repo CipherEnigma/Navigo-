@@ -1,87 +1,91 @@
-export default class SpeechController {
-
- 
+class SpeechController {
     constructor() {
-      this.recognition = new webkitSpeechRecognition() || new SpeechRecognition();
-      this.isListening = false;
-      this.commandMode=false;
-      this.lastCommand='';
-      this.commandHistory=[];
-      this.setupRecognition();
-     
-  }
-  
-     
-    setupRecognition() {
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
-  
-      this.recognition.onresult = (event) => {
-        const last = event.results.length - 1;
-        const command = event.results[last][0].transcript.trim().toLowerCase();
+        console.log('Initializing SpeechController');
+        this.recognition = null;
+        this.isListening = false;
+        this.commands = {
+            'scroll down': () => window.scrollBy(0, 300),
+            'scroll up': () => window.scrollBy(0, -300),
+            'go back': () => window.history.back(),
+            'go forward': () => window.history.forward()
+        };
+        this.initialize();
+    }
+
+    initialize() {
+        try {
+            if (!('webkitSpeechRecognition' in window)) {
+                throw new Error('Speech recognition not supported in this browser');
+            }
+
+            this.recognition = new webkitSpeechRecognition();
+            this.recognition.continuous = true;
+            this.recognition.interimResults = false;
+            this.recognition.lang = 'en-US';
+
+            this.recognition.onstart = () => {
+                console.log('Speech recognition started');
+                this.isListening = true;
+            };
+
+            this.recognition.onend = () => {
+                console.log('Speech recognition ended');
+                this.isListening = false;
+                // Restart if was listening
+                if (this.isListening) {
+                    this.recognition.start();
+                }
+            };
+
+            this.recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+            };
+
+            this.recognition.onresult = (event) => {
+                const last = event.results.length - 1;
+                const command = event.results[last][0].transcript.trim().toLowerCase();
+                console.log('Command recognized:', command);
+
+                if (this.commands[command]) {
+                    this.commands[command]();
+                }
+            };
+
+        } catch (error) {
+            console.error('Speech initialization error:', error);
+            throw error;
+        }
+    }
+
+    start() {
+        if (!this.recognition) {
+            throw new Error('Speech recognition not initialized');
+        }
         
-    
-    this.commandHistory.push({
-      command, 
-      timestamp: new Date() 
-  
-    });
-        if (command.includes('hey navigo')) {
-          this.handleWakeWord(command);
-        } else if (this.isListening) {
-          this.processCommand(command);
+        try {
+            this.recognition.start();
+            console.log('Started listening');
+        } catch (error) {
+            console.error('Error starting speech recognition:', error);
+            throw error;
         }
-      };
-  
-      this.recognition.onstart = () => {
-        this.isListening = true;
-        this.updateToolbarStatus('Listening');
-        this.speakFeedback('Navigo activated');
-      };
-  
-      this.recognition.onend=()=>{
-        if(this.isListening){
-          this.recognition.start();
+    }
+
+    stop() {
+        if (this.recognition) {
+            this.recognition.stop();
+            this.isListening = false;
+            console.log('Stopped listening');
         }
-      };
-  
-      this.recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        this.restartRecognition();
-      };
     }
-  
-    processCommand(command){
+
+    addCommand(command, action) {
+        this.commands[command.toLowerCase()] = action;
     }
-    handleWakeWord(command){
-      this.isListening= true;
-      this.showFeedback('Listening to you commanand');
+
+    removeCommand(command) {
+        delete this.commands[command.toLowerCase()];
     }
-  
-    start(){
-      try{
-        this.recognition.start(); 
-      }
-      catch(error){
-        console.log('Recognition start error:',error);
-        this.restartRecognition();
-      }
-    }
-  
-    restartRecognition(){
-      setTimeout(()=>{
-        try{
-          this.recognition.start();
-        }
-        catch(error){
-          console.log('Recognition restart error:',error);
-        }
-      },1000);
-    }
-  
-    updateToolbarStatus(status){ }
-  
-  }
-  export default SpeechController;  
-  
+}
+
+window.SpeechController = SpeechController;
