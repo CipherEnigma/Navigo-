@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigo</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <h1>Welcome to Navigo</h1>
+    <p>Choose your feature you want to use:</p>
+
+    <div class="features">
+        <label class="toggle">
+            <input type="checkbox" id="gestureToggle">
+            <span class="slider"></span>
+            Gesture Recognition
+        </label>
+
+        <label class="toggle">
+            <input type="checkbox" id="voiceToggle">
+            <span class="slider"></span>
+            Voice Recognition
+        </label>
+
+    </div>
+
+    <p>For customization:</p>
+    <button id="dashboardBtn">Dashboard</button>
+
+    <button id="toolbarBtn">Open Toolbar</button>
+
+    <footer>
+        <button id="helpBtn">Help</button>
+        <button id="feedbackBtn">Feedback</button>
+    </footer>
+    
+
+    <script src="popup.js"></script>
+</body>
+</html>
