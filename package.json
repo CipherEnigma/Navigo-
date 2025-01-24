@@ -5,7 +5,8 @@
   "main": "app.js", 
   "type": "module",
   "scripts": {
-    "start": "node modules/aisummarizer.js" 
+    "start":"node modules/speech.js"
+     
   },
   "dependencies": {
     "dotenv": "^16.4.7",
