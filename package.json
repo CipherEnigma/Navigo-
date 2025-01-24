@@ -1,0 +1,15 @@
+{
+  "name": "your-project-name",
+  "version": "1.0.0",
+  "description": "Your project description",
+  "main": "app.js", 
+  "type": "module",
+  "scripts": {
+    "start": "node modules/aisummarizer.js" 
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "openai": "^4.79.1"
+  }
+}
