@@ -54,57 +54,63 @@ if (!window.navigoController) {
 
         injectStyles() {
             const style = document.createElement('style');
-            style.textContent = `
-                .navigo-toolbar {
-                    position: fixed;
-                    bottom: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #fff;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    border-radius: 8px;
-                    padding: 10px 20px;
-                    z-index: 10000;
-                    display: flex;
-                    gap: 10px;
-                }
+            style.textContent = style.textContent = `
+            .navigo-toolbar {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #000; /* Black */
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                border-radius: 12px;
+                padding: 20px;
+                z-index: 10000;
+                display: flex;
+                gap: 12px;
+                min-width: 320px;
+                color: #fff;
+                font-family: 'Inter', sans-serif;
+            }
 
-                .navigo-toolbar button {
-                    padding: 8px 16px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #007bff;
-                    color: white;
-                    cursor: pointer;
-                    transition: background 0.3s;
-                }
+            .navigo-toolbar button {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                background: #6a0dad; /* Purple */
+                color: white;
+                cursor: pointer;
+                transition: background 0.3s, transform 0.2s;
+                font-size: 14px;
+            }
 
-                .navigo-toolbar button:hover {
-                    background: #0056b3;
-                }
+            .navigo-toolbar button:hover {
+                background: #5a0cae; /* Slightly darker purple */
+                transform: translateY(-2px);
+            }
 
-                .navigo-toolbar button.active {
-                    background: #28a745;
-                }
+            .navigo-toolbar button.active {
+                background: #28a745; /* Green */
+            }
 
-                #summaryContainer {
-                    margin-top: 10px;
-                    padding: 10px;
-                    background: #f8f9fa;
-                    border-radius: 4px;
-                }
+            #summaryContainer {
+                margin-top: 20px;
+                padding: 15px;
+                background: #1E1E1E; /* Dark Gray */
+                border-radius: 8px;
+                color: #fff;
+            }
 
-                .voice-feedback {
-                    position: fixed;
-                    bottom: 80px;
-                    right: 20px;
-                    background: rgba(0,0,0,0.8);
-                    color: white;
-                    padding: 10px 20px;
-                    border-radius: 4px;
-                    z-index: 10001;
-                }
-            `;
+            .voice-feedback {
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                background: rgba(0,0,0,0.8);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 4px;
+                z-index: 10001;
+            }
+        `;
             document.head.appendChild(style);
         }
 
@@ -173,12 +179,12 @@ if (!window.navigoController) {
             const toolbar = document.createElement('div');
             toolbar.id = 'navigo-toolbar';
             toolbar.className = 'navigo-toolbar';
+            
             toolbar.innerHTML = `
                 <div class="toolbar-controls">
                     <button id="listMics" data-feature="List Microphones">List Microphones</button>
                     <button id="voiceNav" data-feature="Voice Navigation">Start Voice Navigation</button>
                     <button id="gestureNav" data-feature="Gesture Navigation">Start Gesture Navigation</button>
-                    <button id="summarizeBtn">Summarize Page</button>
                     <button id="closeToolbar">Close</button>
                 </div>
                 <div id="microphoneList" style="display: none; margin-top: 10px;">
@@ -195,58 +201,63 @@ if (!window.navigoController) {
 
             const style = document.createElement('style');
             style.textContent = `
-                .navigo-toolbar {
-                    position: fixed;
-                    bottom: 20px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    background: #fff;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    border-radius: 8px;
-                    padding: 15px;
-                    z-index: 10000;
-                    min-width: 300px;
-                }
-                .toolbar-controls {
-                    display: flex;
-                    gap: 10px;
-                    flex-wrap: wrap;
-                    justify-content: center;
-                }
-                .toolbar-controls button {
-                    padding: 8px 16px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #007bff;
-                    color: white;
-                    cursor: pointer;
-                    transition: background 0.3s;
-                }
-                .toolbar-controls button:hover {
-                    background: #0056b3;
-                }
-                .toolbar-controls button:disabled {
-                    background: #ccc;
-                    cursor: not-allowed;
-                }
-                #microphoneList {
-                    margin-top: 15px;
-                    background: #f5f5f5;
-                    padding: 10px;
-                    border-radius: 5px;
-                }
-                #micList li {
-                    padding: 8px 12px;
-                    margin: 5px 0;
-                    background: white;
-                    border-radius: 3px;
-                    cursor: pointer;
-                    transition: background 0.2s;
-                }
-                #micList li:hover {
-                    background: #e0e0e0;
-                }
-            `;
+            .navigo-toolbar {
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #0A192F; /* Dark Blue */
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                border-radius: 12px;
+                padding: 20px;
+                z-index: 10000;
+                min-width: 320px;
+                color: #fff;
+                font-family: 'Inter', sans-serif;
+            }
+            .toolbar-controls {
+                display: flex;
+                gap: 12px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .toolbar-controls button {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 6px;
+                background: #1E90FF; /* Dodger Blue */
+                color: white;
+                cursor: pointer;
+                transition: background 0.3s, transform 0.2s;
+                font-size: 14px;
+            }
+            .toolbar-controls button:hover {
+                background: #1C86EE; /* Slightly darker blue */
+                transform: translateY(-2px);
+            }
+            .toolbar-controls button:disabled {
+                background: #A9A9A9; /* Dark Gray */
+                cursor: not-allowed;
+            }
+            #microphoneList {
+                margin-top: 20px;
+                background: #1E1E1E; /* Dark Gray */
+                padding: 15px;
+                border-radius: 8px;
+                color: #fff;
+            }
+            #micList li {
+                padding: 10px 15px;
+                margin: 8px 0;
+                background: #2E2E2E; /* Slightly lighter gray */
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            #micList li:hover {
+                background: #3E3E3E; /* Even lighter gray */
+            }
+        `;
             document.head.appendChild(style);
 
             document.body.appendChild(toolbar);
@@ -260,7 +271,6 @@ if (!window.navigoController) {
                 listMics: document.getElementById('listMics'),
                 voiceNav: document.getElementById('voiceNav'),
                 gestureNav: document.getElementById('gestureNav'),
-                summarizeBtn: document.getElementById('summarizeBtn'),
                 closeToolbar: document.getElementById('closeToolbar'),
                 microphoneList: document.getElementById('microphoneList'),
                 micList: document.getElementById('micList'),
@@ -284,7 +294,7 @@ if (!window.navigoController) {
                 this.updateButtonState(elements.gestureNav, state.isGestureActive);
             });
 
-            elements.summarizeBtn.addEventListener('click', () => this.handleSummarizeClick());
+            //elements.summarizeBtn.addEventListener('click', () => this.handleSummarizeClick());
 
             elements.closeToolbar.addEventListener('click', () => {
                 if (state.isVoiceActive) this.toggleVoiceNavigation(false);
