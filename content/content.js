@@ -108,10 +108,65 @@ if (!window.navigoController) {
             document.head.appendChild(style);
         }
 
-        injectToolbar() {
+        async loadMediaPipeScript() {
+            return new Promise(async (resolve, reject) => {
+                try {
+                
+                    if (window.Hands) {
+                        resolve(window.Hands);
+                        return;
+                    }
+
+                
+                    const dependencies = [
+                        'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js',
+                        'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
+                        'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
+                        'https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js'
+                    ];
+
+                
+                    for (const url of dependencies) {
+                        await new Promise((resolveScript, rejectScript) => {
+                            const script = document.createElement('script');
+                            script.src = url;
+                            script.crossOrigin = 'anonymous';
+                            
+                            script.onload = resolveScript;
+                            script.onerror = () => rejectScript(new Error(`Failed to load ${url}`));
+                            
+                            document.head.appendChild(script);
+                        });
+                    }
+
+                    // Wait a bit to ensure everything is initialized
+                    setTimeout(() => {
+                        if (window.Hands) {
+                            resolve(window.Hands);
+                        } else {
+                            reject(new Error('MediaPipe Hands failed to initialize'));
+                        }
+                    }, 1000);
+
+                } catch (error) {
+                    reject(new Error(`Failed to load MediaPipe: ${error.message}`));
+                }
+            });
+        }
+
+        async injectToolbar() {
             if (document.getElementById('navigo-toolbar')) {
                 console.log('Toolbar already exists');
                 return;
+            }
+
+            // Load MediaPipe before creating toolbar
+            try {
+                await this.loadMediaPipeScript();
+                console.log('MediaPipe Hands loaded successfully');
+            } catch (error) {
+                console.error('Failed to load MediaPipe:', error);
+                // Continue without hand gestures if MediaPipe fails to load
             }
 
             console.log('Injecting toolbar');
@@ -430,97 +485,23 @@ if (!window.navigoController) {
             
             if (state) {
                 try {
-                    console.log('🎥 Initializing gesture navigation...');
-                    
-                    if (!document.querySelector('.input_video')) {
-                        const videoElement = document.createElement('video');
-                        videoElement.className = 'input_video';
-                        videoElement.style.cssText = `
-                            position: fixed;
-                            right: 0;
-                            bottom: 140px;
-                            width: 192px;
-                            height: 144px;
-                            border-radius: 8px;
-                            border: 2px solid #2196F3;
-                            z-index: 999998;
-                            transform: scaleX(-1); /* Mirror the video */
-                            background: #000;
-                        `;
-                        videoElement.autoplay = true;
-                        videoElement.playsInline = true;
-                        document.body.appendChild(videoElement);
-                        console.log('📹 Video element created');
+                    if (!window.Hands) {
+                        this.showFeedback('Loading gesture recognition...');
+                        this.loadMediaPipeScript()
+                            .then(() => {
+                                this.initializeGestureRecognition();
+                            })
+                            .catch(error => {
+                                console.error('Failed to load MediaPipe:', error);
+                                this.showFeedback('Error: Could not load gesture recognition');
+                                const gestureNav = document.getElementById('gestureNav');
+                                if (gestureNav) {
+                                    this.updateButtonState(gestureNav, false);
+                                }
+                            });
+                    } else {
+                        this.initializeGestureRecognition();
                     }
-
-                    if (!document.querySelector('.output_canvas')) {
-                        const canvasElement = document.createElement('canvas');
-                        canvasElement.className = 'output_canvas';
-                        canvasElement.width = 640;
-                        canvasElement.height = 480;
-                        canvasElement.style.cssText = `
-                            position: fixed;
-                            right: 0;
-                            bottom: 140px;
-                            width: 192px;
-                            height: 144px;
-                            border-radius: 8px;
-                            border: 2px solid #2196F3;
-                            background: rgba(0,0,0,0.5);
-                            z-index: 999999;
-                        `;
-                        document.body.appendChild(canvasElement);
-                        console.log('🎨 Canvas element created');
-                    }
-
-                    try {
-                        console.log('📸 Requesting camera access...');
-                        const stream = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                width: { ideal: 640 },
-                                height: { ideal: 480 },
-                                facingMode: 'user'
-                            }
-                        });
-                        console.log('✅ Camera access granted:', stream);
-
-                        const videoElement = document.querySelector('.input_video');
-                        videoElement.srcObject = stream;
-                        
-                        videoElement.onloadedmetadata = () => {
-                            console.log('📹 Video metadata loaded');
-                            videoElement.play()
-                                .then(() => {
-                                    console.log('▶️ Video playback started');
-                                    this.startGestureDetection(videoElement);
-                                })
-                                .catch(err => console.error('❌ Video playback error:', err));
-                        };
-
-                        const indicator = document.createElement('div');
-                        indicator.id = 'gesture-indicator';
-                        indicator.textContent = '🎥 Camera Active';
-                        indicator.style.cssText = `
-                            position: fixed;
-                            bottom: 290px;
-                            right: 10px;
-                            background: rgba(0, 0, 0, 0.8);
-                            color: white;
-                            padding: 5px 10px;
-                            border-radius: 5px;
-                            z-index: 999999;
-                            font-family: Arial, sans-serif;
-                            font-size: 12px;
-                        `;
-                        document.body.appendChild(indicator);
-
-                        this.showFeedback('✅ Gesture navigation activated');
-                        
-                    } catch (error) {
-                        console.error('❌ Error accessing camera:', error);
-                        throw new Error('Could not access camera: ' + error.message);
-                    }
-                    
                 } catch (error) {
                     console.error('❌ Error initializing gestures:', error);
                     this.showFeedback('❌ Error: ' + error.message);
@@ -557,6 +538,98 @@ if (!window.navigoController) {
                 if (indicator) indicator.remove();
                 
                 this.showFeedback('🛑 Gesture navigation deactivated');
+            }
+        }
+
+        async initializeGestureRecognition() {
+            // Create video and canvas elements as before
+            if (!document.querySelector('.input_video')) {
+                const videoElement = document.createElement('video');
+                videoElement.className = 'input_video';
+                videoElement.style.cssText = `
+                    position: fixed;
+                    right: 0;
+                    bottom: 140px;
+                    width: 192px;
+                    height: 144px;
+                    border-radius: 8px;
+                    border: 2px solid #2196F3;
+                    z-index: 999998;
+                    transform: scaleX(-1); /* Mirror the video */
+                    background: #000;
+                `;
+                videoElement.autoplay = true;
+                videoElement.playsInline = true;
+                document.body.appendChild(videoElement);
+                console.log('📹 Video element created');
+            }
+
+            if (!document.querySelector('.output_canvas')) {
+                const canvasElement = document.createElement('canvas');
+                canvasElement.className = 'output_canvas';
+                canvasElement.width = 640;
+                canvasElement.height = 480;
+                canvasElement.style.cssText = `
+                    position: fixed;
+                    right: 0;
+                    bottom: 140px;
+                    width: 192px;
+                    height: 144px;
+                    border-radius: 8px;
+                    border: 2px solid #2196F3;
+                    background: rgba(0,0,0,0.5);
+                    z-index: 999999;
+                `;
+                document.body.appendChild(canvasElement);
+                console.log('🎨 Canvas element created');
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 640 },
+                        height: { ideal: 480 },
+                        facingMode: 'user'
+                    }
+                });
+
+                const videoElement = document.querySelector('.input_video');
+                videoElement.srcObject = stream;
+                
+                videoElement.onloadedmetadata = () => {
+                    videoElement.play()
+                        .then(() => {
+                            console.log('▶️ Video playback started');
+                            this.startGestureDetection(videoElement);
+                        })
+                        .catch(err => console.error('❌ Video playback error:', err));
+                };
+
+                const hands=await intiialiseMediaPipe();
+                hands.onResults(onHandResults);
+                
+                const indicator = document.createElement('div');
+                indicator.id = 'gesture-indicator';
+                indicator.textContent = '🎥 Camera Active';
+                indicator.style.cssText = `
+                    position: fixed;
+                    bottom: 290px;
+                    right: 10px;
+                    background: rgba(0, 0, 0, 0.8);
+                    color: white;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    z-index: 999999;
+                    font-family: Arial, sans-serif;
+                    font-size: 12px;
+                `;
+                document.body.appendChild(indicator);
+
+                this.showFeedback('✅ Gesture navigation activated');
+                
+            } catch (error) {
+                console.error('❌ Error accessing camera:', error);
+                throw new Error('Could not access camera: ' + error.message);
             }
         }
 

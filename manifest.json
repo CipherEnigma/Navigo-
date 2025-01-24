@@ -7,13 +7,16 @@
     "activeTab",
     "storage",
     "scripting",
-    "tabs"
+    "tabs",
+    "https://cdn.jsdelivr.net/*"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://cdn.jsdelivr.net/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'",
+    "content_scripts": ["script-src 'self' https://cdn.jsdelivr.net; object-src 'self'"]
   },
   "web_accessible_resources": [
     {
