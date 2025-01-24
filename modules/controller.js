@@ -41,7 +41,11 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   tabStates.delete(tabId);
 });
 
-// Main message handler
+speechController.addCommand('close', () => {
+      window.close();
+});
+
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (!tabs[0]) {

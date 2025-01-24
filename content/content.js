@@ -216,6 +216,7 @@ if (!window.navigoController) {
                 listMics: document.getElementById('listMics'),
                 voiceNav: document.getElementById('voiceNav'),
                 gestureNav: document.getElementById('gestureNav'),
+                summarizeBtn: document.getElementById('summarizeBtn'),
                 closeToolbar: document.getElementById('closeToolbar'),
                 microphoneList: document.getElementById('microphoneList'),
                 micList: document.getElementById('micList'),
@@ -239,7 +240,7 @@ if (!window.navigoController) {
                 this.updateButtonState(elements.gestureNav, state.isGestureActive);
             });
 
-            //elements.summarizeBtn.addEventListener('click', () => this.handleSummarizeClick());
+            elements.summarizeBtn.addEventListener('click', () => this.handleSummarizeClick());
 
             elements.closeToolbar.addEventListener('click', () => {
                 if (state.isVoiceActive) this.toggleVoiceNavigation(false);
@@ -842,7 +843,16 @@ if (!window.navigoController) {
                                 } else {
                                     this.showVisualFeedback('No element focused');
                                 }
+                            },
+                                'close': () => {
+                            console.log('Executing: close');
+                            if (window.opener) {
+                                window.close();
+                            } else {
+                                console.log('Unable to close the window. This window was not opened by a script.');
+                                this.showVisualFeedback('Unable to close the window');
                             }
+                    }
                         };
 
                         this.setupRecognition();
@@ -1100,7 +1110,35 @@ if (!window.navigoController) {
                             });
                             this.showVisualFeedback('⬇️ Going to bottom');
                             commandExecuted = true;
+                        },
+                       'close': () => {
+                        console.log('📜 Executing: close');
+                        try {
+                            // Multiple strategies to close window
+                            if (window.close) {
+                                window.close();
+                            }
+                            
+                            // Fallback method
+                            if (!window.closed) {
+                                window.open('', '_self').close();
+                            }
+
+                            // If still not closed
+                            if (!window.closed) {
+                                // Browser-specific alternatives
+                                if (window.history && window.history.length > 1) {
+                                    window.history.back();
+                                } else {
+                                    alert('Cannot automatically close this tab. Please close manually.');
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Window close error:', error);
+                            alert('Failed to close window. Please close manually.');
                         }
+                    }
+
                     };
 
                     const cleanTranscript = transcript.toLowerCase().trim();
