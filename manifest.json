@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "Navigo",
+  "version": "1.0",
+  "description": "Accessibility extension for hands-free web navigation",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["modules/*", "content/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": ["modules/aisummarizer.js"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": [
+        "content/content.js"
+      ],
+      "css": ["content/content.css"],
+      "type": "module"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "background": {
+    "service_worker": "scripts/background.js"
+  }
+}
