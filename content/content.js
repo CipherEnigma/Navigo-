@@ -6,7 +6,6 @@ if (!window.navigoController) {
             this.setupMessageListener();
             this.injectStyles();
             this.loadSpeechController();
-            
             this.testVisualFeedback();
         }
 
@@ -37,7 +36,7 @@ if (!window.navigoController) {
         setupMessageListener() {
             chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.log('Content script received message:', request);
-                
+
                 try {
                     if (request.action === 'openToolbar') {
                         console.log('Opening toolbar...');
@@ -117,13 +116,13 @@ if (!window.navigoController) {
         async loadMediaPipeScript() {
             return new Promise(async (resolve, reject) => {
                 try {
-                
+
                     if (window.Hands) {
                         resolve(window.Hands);
                         return;
                     }
 
-                
+
                     const dependencies = [
                         'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js',
                         'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
@@ -131,16 +130,16 @@ if (!window.navigoController) {
                         'https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js'
                     ];
 
-                
+
                     for (const url of dependencies) {
                         await new Promise((resolveScript, rejectScript) => {
                             const script = document.createElement('script');
                             script.src = url;
                             script.crossOrigin = 'anonymous';
-                            
+
                             script.onload = resolveScript;
                             script.onerror = () => rejectScript(new Error(`Failed to load ${url}`));
-                            
+
                             document.head.appendChild(script);
                         });
                     }
@@ -159,6 +158,7 @@ if (!window.navigoController) {
                 }
             });
         }
+
 
         async injectToolbar() {
             if (document.getElementById('navigo-toolbar')) {
@@ -179,7 +179,7 @@ if (!window.navigoController) {
             const toolbar = document.createElement('div');
             toolbar.id = 'navigo-toolbar';
             toolbar.className = 'navigo-toolbar';
-            
+
             toolbar.innerHTML = `
                 <div class="toolbar-controls">
                     <button id="listMics" data-feature="List Microphones">List Microphones</button>
@@ -261,79 +261,16 @@ if (!window.navigoController) {
             document.head.appendChild(style);
 
             document.body.appendChild(toolbar);
+
+            // Check if toolbar is in the DOM
+            if (!document.getElementById('navigo-toolbar')) {
+                console.error('Failed to inject toolbar into the DOM');
+                return;
+            }
+
+            console.log('Toolbar injected successfully');
             this.addToolbarListeners();
             this.toolbarVisible = true;
-            console.log('Toolbar injected successfully');
-        }
-
-        addToolbarListeners() {
-            const elements = {
-                listMics: document.getElementById('listMics'),
-                voiceNav: document.getElementById('voiceNav'),
-                gestureNav: document.getElementById('gestureNav'),
-                summarizeBtn: document.getElementById('summarizeBtn'),
-                closeToolbar: document.getElementById('closeToolbar'),
-                microphoneList: document.getElementById('microphoneList'),
-                micList: document.getElementById('micList'),
-                micLevel: document.getElementById('micLevel')
-            };
-
-            let state = {
-                isVoiceActive: false,
-                isGestureActive: false
-            };
-
-            elements.voiceNav.addEventListener('click', () => {
-                state.isVoiceActive = !state.isVoiceActive;
-                this.toggleVoiceNavigation(state.isVoiceActive);
-                this.updateButtonState(elements.voiceNav, state.isVoiceActive);
-            });
-
-            elements.gestureNav.addEventListener('click', () => {
-                state.isGestureActive = !state.isGestureActive;
-                this.toggleGestureNavigation(state.isGestureActive);
-                this.updateButtonState(elements.gestureNav, state.isGestureActive);
-            });
-
-            elements.summarizeBtn.addEventListener('click', () => this.handleSummarizeClick());
-
-            elements.closeToolbar.addEventListener('click', () => {
-                if (state.isVoiceActive) this.toggleVoiceNavigation(false);
-                if (state.isGestureActive) this.toggleGestureNavigation(false);
-                document.getElementById('navigo-toolbar').remove();
-                this.toolbarVisible = false;
-            });
-
-            elements.listMics?.addEventListener('click', async () => {
-                console.log('List Microphones clicked');
-                elements.listMics.disabled = true;
-                elements.listMics.textContent = 'Requesting Permission...';
-                
-                const permissionGranted = await this.requestMicrophonePermission();
-                
-                if (!permissionGranted) {
-                    elements.listMics.textContent = 'Permission Denied';
-                    setTimeout(() => {
-                        elements.listMics.disabled = false;
-                        elements.listMics.textContent = 'List Microphones';
-                    }, 2000);
-                } else {
-                    elements.listMics.disabled = false;
-                    elements.listMics.textContent = 'List Microphones';
-                }
-            });
-        }
-
-        updateButtonState(button, isActive) {
-            console.log('Updating button state:', isActive);
-            button.classList.toggle('active', isActive);
-            button.textContent = `${isActive ? 'Stop' : 'Start'} ${button.dataset.feature}`;
-            
-            if (isActive) {
-                button.style.backgroundColor = '#28a745';
-            } else {
-                button.style.backgroundColor = '#007bff';
-            }
         }
 
         async checkMicrophoneStatus() {
@@ -341,16 +278,16 @@ if (!window.navigoController) {
                 // List available audio devices
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const microphones = devices.filter(device => device.kind === 'audioinput');
-                
+
                 console.log('Available microphones:', microphones);
-                
+
                 if (microphones.length === 0) {
                     this.showFeedback('No microphones found! Please connect a microphone.');
                     return false;
                 }
 
                 // Test microphone access
-                const stream = await navigator.mediaDevices.getUserMedia({ 
+                const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
@@ -359,25 +296,25 @@ if (!window.navigoController) {
                 });
 
                 console.log('Microphone access granted:', stream);
-                
+
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const analyser = audioContext.createAnalyser();
                 const microphone = audioContext.createMediaStreamSource(stream);
                 microphone.connect(analyser);
-                
+
                 analyser.fftSize = 256;
                 const bufferLength = analyser.frequencyBinCount;
                 const dataArray = new Uint8Array(bufferLength);
-                
+
                 const activeMic = microphones.find(m => m.deviceId === stream.getAudioTracks()[0].getSettings().deviceId);
                 this.showFeedback(`Using microphone: ${activeMic ? activeMic.label : 'Default device'}`);
-                
+
                 return new Promise((resolve) => {
                     const checkSound = () => {
                         analyser.getByteFrequencyData(dataArray);
                         const average = dataArray.reduce((a, b) => a + b) / bufferLength;
                         console.log('Current microphone level:', average);
-                        
+
                         if (average > 0) {
                             console.log('Sound detected!');
                             stream.getTracks().forEach(track => track.stop());
@@ -388,7 +325,7 @@ if (!window.navigoController) {
                             setTimeout(checkSound, 100);
                         }
                     };
-                    
+
                     checkSound();
                 });
             } catch (error) {
@@ -402,7 +339,7 @@ if (!window.navigoController) {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const microphones = devices.filter(device => device.kind === 'audioinput');
-                
+
                 console.log('Available Microphones:');
                 microphones.forEach((mic, index) => {
                     console.log(`${index + 1}. ${mic.label || 'Unnamed Microphone'} (${mic.deviceId})`);
@@ -425,44 +362,44 @@ if (!window.navigoController) {
 
         async toggleVoiceNavigation(state) {
             console.log('Attempting to toggle voice navigation:', state);
-            
+
             if (state) {
                 try {
                     const micStatus = await this.checkMicrophoneStatus();
                     console.log('Microphone status:', micStatus);
-                    
+
                     if (micStatus) {
                         if (!this.speechController) {
                             console.log('Initializing speech controller');
                             this.showFeedback('Initializing voice navigation...');
-                            
+
                             await new Promise(resolve => setTimeout(resolve, 1000));
-                            
+
                             this.speechController = new this.SpeechController();
-                            
+
                             if (!this.speechController.recognition) {
                                 throw new Error('Speech recognition failed to initialize');
                             }
                         }
-                        
+
                         await new Promise(resolve => setTimeout(resolve, 500));
-                        
+
                         console.log('Starting speech recognition');
                         await this.speechController.start();
-                        
+
                         if (!this.speechController.isListening) {
                             throw new Error('Failed to start speech recognition');
                         }
-                        
+
                         this.showFeedback('Voice navigation activated. Say "Hey Navigo" to start.');
-                        
+
                         this.voiceStatusInterval = setInterval(() => {
                             if (!this.speechController.isListening) {
                                 console.log('Restarting speech recognition...');
                                 this.speechController.start();
                             }
                         }, 5000);
-                        
+
                     } else {
                         throw new Error('Microphone not working or not accessible');
                     }
@@ -476,24 +413,24 @@ if (!window.navigoController) {
                 }
             } else if (this.speechController) {
                 console.log('Stopping speech recognition');
-                
+
                 if (this.voiceStatusInterval) {
                     clearInterval(this.voiceStatusInterval);
                     this.voiceStatusInterval = null;
                 }
-                
+
                 await this.speechController.stop();
                 this.showFeedback('Voice navigation deactivated');
-                
+
                 await new Promise(resolve => setTimeout(resolve, 500));
-                
+
                 this.speechController = null;
             }
         }
 
         async toggleGestureNavigation(state) {
             console.log('🎥 Toggling gesture navigation:', state ? 'ON' : 'OFF');
-            
+
             if (state) {
                 try {
                     if (!window.Hands) {
@@ -516,7 +453,7 @@ if (!window.navigoController) {
                 } catch (error) {
                     console.error('❌ Error initializing gestures:', error);
                     this.showFeedback('❌ Error: ' + error.message);
-                    
+
                     const gestureNav = document.getElementById('gestureNav');
                     if (gestureNav) {
                         this.updateButtonState(gestureNav, false);
@@ -524,16 +461,16 @@ if (!window.navigoController) {
                 }
             } else {
                 console.log('🛑 Stopping gesture navigation...');
-                
+
                 if (this.gestureDetectionInterval) {
                     clearInterval(this.gestureDetectionInterval);
                     this.gestureDetectionInterval = null;
                 }
-                
+
                 const videoElement = document.querySelector('.input_video');
                 const canvasElement = document.querySelector('.output_canvas');
                 const indicator = document.getElementById('gesture-indicator');
-                
+
                 if (videoElement) {
                     const stream = videoElement.srcObject;
                     if (stream) {
@@ -544,10 +481,10 @@ if (!window.navigoController) {
                     }
                     videoElement.remove();
                 }
-                
+
                 if (canvasElement) canvasElement.remove();
                 if (indicator) indicator.remove();
-                
+
                 this.showFeedback('🛑 Gesture navigation deactivated');
             }
         }
@@ -606,7 +543,7 @@ if (!window.navigoController) {
 
                 const videoElement = document.querySelector('.input_video');
                 videoElement.srcObject = stream;
-                
+
                 videoElement.onloadedmetadata = () => {
                     videoElement.play()
                         .then(() => {
@@ -616,9 +553,9 @@ if (!window.navigoController) {
                         .catch(err => console.error('❌ Video playback error:', err));
                 };
 
-                const hands=await intiialiseMediaPipe();
+                const hands = await intiialiseMediaPipe();
                 hands.onResults(onHandResults);
-                
+
                 const indicator = document.createElement('div');
                 indicator.id = 'gesture-indicator';
                 indicator.textContent = '🎥 Camera Active';
@@ -637,12 +574,83 @@ if (!window.navigoController) {
                 document.body.appendChild(indicator);
 
                 this.showFeedback('✅ Gesture navigation activated');
-                
+
             } catch (error) {
                 console.error('❌ Error accessing camera:', error);
                 throw new Error('Could not access camera: ' + error.message);
             }
         }
+
+        addToolbarListeners() {
+            const elements = {
+                listMics: document.getElementById('listMics'),
+                voiceNav: document.getElementById('voiceNav'),
+                gestureNav: document.getElementById('gestureNav'),
+                closeToolbar: document.getElementById('closeToolbar'),
+                microphoneList: document.getElementById('microphoneList'),
+                micList: document.getElementById('micList'),
+                micLevel: document.getElementById('micLevel')
+            };
+
+            let state = {
+                isVoiceActive: false,
+                isGestureActive: false
+            };
+
+            elements.voiceNav.addEventListener('click', () => {
+                state.isVoiceActive = !state.isVoiceActive;
+                this.toggleVoiceNavigation(state.isVoiceActive);
+                this.updateButtonState(elements.voiceNav, state.isVoiceActive);
+            });
+
+            elements.gestureNav.addEventListener('click', () => {
+                state.isGestureActive = !state.isGestureActive;
+                this.toggleGestureNavigation(state.isGestureActive);
+                this.updateButtonState(elements.gestureNav, state.isGestureActive);
+            });
+
+            elements.closeToolbar.addEventListener('click', () => {
+                const toolbar = document.getElementById('navigo-toolbar');
+                if (toolbar) {
+                    toolbar.remove();
+                    this.toolbarVisible = false;
+                    console.log('Toolbar closed');
+                }
+            });
+
+            elements.listMics?.addEventListener('click', async () => {
+                console.log('List Microphones clicked');
+                elements.listMics.disabled = true;
+                elements.listMics.textContent = 'Requesting Permission...';
+
+                const permissionGranted = await this.requestMicrophonePermission();
+
+                if (!permissionGranted) {
+                    elements.listMics.textContent = 'Permission Denied';
+                    setTimeout(() => {
+                        elements.listMics.disabled = false;
+                        elements.listMics.textContent = 'List Microphones';
+                    }, 2000);
+                } else {
+                    elements.listMics.disabled = false;
+                    elements.listMics.textContent = 'List Microphones';
+                }
+            });
+        }
+
+
+        updateButtonState(button, isActive) {
+            console.log('Updating button state:', isActive);
+            button.classList.toggle('active', isActive);
+            button.textContent = `${isActive ? 'Stop' : 'Start'} ${button.dataset.feature}`;
+
+            if (isActive) {
+                button.style.backgroundColor = '#28a745';
+            } else {
+                button.style.backgroundColor = '#007bff';
+            }
+        }
+
 
         startGestureDetection(videoElement) {
             const canvasElement = document.querySelector('.output_canvas');
@@ -655,11 +663,11 @@ if (!window.navigoController) {
             this.gestureDetectionInterval = setInterval(() => {
                 try {
                     canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-                    
+
                     const centerX = Math.floor(canvasElement.width / 2);
                     const centerY = Math.floor(canvasElement.height / 2);
                     const pixelData = canvasCtx.getImageData(centerX - 5, centerY - 5, 10, 10).data;
-                    
+
                     let totalBrightness = 0;
                     for (let i = 0; i < pixelData.length; i += 4) {
                         const r = pixelData[i];
@@ -668,14 +676,14 @@ if (!window.navigoController) {
                         totalBrightness += (r + g + b) / 3;
                     }
                     const avgBrightness = totalBrightness / (pixelData.length / 4);
-                    
+
                     if (frameCount === 0) {
                         lastY = avgBrightness;
                     }
-                    
+
                     const movement = avgBrightness - lastY;
                     frameCount++;
-                    
+
                     if (frameCount >= FRAMES_TO_ANALYZE) {
                         if (Math.abs(movement) > MOVEMENT_THRESHOLD) {
                             if (movement > 0) {
@@ -696,9 +704,9 @@ if (!window.navigoController) {
                         }
                         frameCount = 0;
                     }
-                    
+
                     lastY = avgBrightness;
-                    
+
                 } catch (error) {
                     console.error('Error in gesture detection:', error);
                 }
@@ -710,7 +718,7 @@ if (!window.navigoController) {
             const feedback = document.createElement('div');
             feedback.className = 'navigo-feedback';
             feedback.textContent = message;
-            
+
             feedback.style.cssText = `
                 position: fixed;
                 top: 20px;
@@ -760,16 +768,16 @@ if (!window.navigoController) {
         async selectMicrophone(mic) {
             console.log('Selected microphone:', mic);
             this.showFeedback(`Selected: ${mic.label}`);
-            
+
             this.selectedMicrophone = mic;
-            
+
             const micItems = document.querySelectorAll('#micList li');
             micItems.forEach(item => item.classList.remove('selected'));
             const selectedItem = Array.from(micItems).find(item => item.dataset.deviceId === mic.deviceId);
             if (selectedItem) {
                 selectedItem.classList.add('selected');
             }
-            
+
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
@@ -789,15 +797,15 @@ if (!window.navigoController) {
                 console.log('Requesting microphone permission...');
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 console.log('Microphone permission granted');
-                
+
                 // Stop the stream right away as we just needed the permission
                 stream.getTracks().forEach(track => track.stop());
-                
+
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const microphones = devices.filter(device => device.kind === 'audioinput');
-                
+
                 console.log('Found microphones:', microphones);
-                
+
                 if (microphones.length === 0) {
                     this.showFeedback('No microphones found! Please connect a microphone.');
                     return false;
@@ -830,9 +838,9 @@ if (!window.navigoController) {
             this.SpeechController = class {
                 constructor() {
                     console.log('SpeechController: Initializing...');
-                    
+
                     this.createFeedbackElement();
-                    
+
                     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                         console.error('SpeechController: Speech recognition not supported');
                         throw new Error('Speech recognition not supported in this browser');
@@ -843,7 +851,7 @@ if (!window.navigoController) {
                         this.isListening = false;
                         this.commandMode = false;
                         this.lastResult = '';
-                        
+
                         this.commands = {
                             'scroll down': () => {
                                 console.log('Executing: scroll down');
@@ -917,15 +925,18 @@ if (!window.navigoController) {
                                     this.showVisualFeedback('No element focused');
                                 }
                             },
-                                'close': () => {
-                            console.log('Executing: close');
-                            if (window.opener) {
-                                window.close();
-                            } else {
-                                console.log('Unable to close the window. This window was not opened by a script.');
-                                this.showVisualFeedback('Unable to close the window');
-                            }
-                    }
+                            'close': () => {
+                                console.log('Executing: close');
+                                if (window.opener) {
+                                    window.close();
+                                } else {
+                                    console.log('Unable to close the window. This window was not opened by a script.');
+                                    this.showVisualFeedback('Unable to close the window');
+                                }
+                            },
+                            'search for': (transcript) => this.handleSearch(transcript),
+                            'find': (transcript) => this.handleSearch(transcript),
+                            'search page': (transcript) => this.handleSearch(transcript)
                         };
 
                         this.setupRecognition();
@@ -933,6 +944,187 @@ if (!window.navigoController) {
                     } catch (error) {
                         console.error('Error initializing speech recognition:', error);
                         throw error;
+                    }
+                }
+
+
+                handleSearch(transcript) {
+                    const searchCommands = ['search for', 'find', 'search page'];
+                    let searchQuery = transcript.toLowerCase();
+
+                    for (const cmd of searchCommands) {
+                        if (searchQuery.startsWith(cmd)) {
+                            searchQuery = searchQuery.substring(cmd.length).trim();
+                            break;
+                        }
+                    }
+
+                    if (!searchQuery) {
+                        this.showVisualFeedback('No search term provided');
+                        return;
+                    }
+
+                    let searchOverlay = document.getElementById('navigo-search-overlay');
+                    if (!searchOverlay) {
+                        searchOverlay = this.createSearchOverlay();
+                    }
+
+                    this.performPageSearch(searchQuery, searchOverlay);
+                }
+
+                createSearchOverlay() {
+                    const overlay = document.createElement('div');
+                    overlay.id = 'navigo-search-overlay';
+                    overlay.innerHTML = `
+                <div class="search-container">
+                    <div class="search-header">
+                        <span class="result-count"></span>
+                        <button class="close-search">×</button>
+                    </div>
+                    <div class="search-results"></div>
+                    <div class="search-controls">
+                        <button class="prev-result">Previous</button>
+                        <button class="next-result">Next</button>
+                    </div>
+                </div>
+            `;
+
+                    const style = document.createElement('style');
+                    style.textContent = `
+                #navigo-search-overlay {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #2c2c2c;
+                    border-radius: 8px;
+                    padding: 15px;
+                    z-index: 10000;
+                    color: white;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                    font-family: Arial, sans-serif;
+                    min-width: 300px;
+                }
+                .search-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .search-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+                .close-search {
+                    background: none;
+                    border: none;
+                    color: white;
+                    font-size: 20px;
+                    cursor: pointer;
+                }
+                .search-results {
+                    max-height: 200px;
+                    overflow-y: auto;
+                    margin: 10px 0;
+                }
+                .search-controls {
+                    display: flex;
+                    gap: 10px;
+                }
+                .search-controls button {
+                    padding: 5px 10px;
+                    border: none;
+                    border-radius: 4px;
+                    background: #4CAF50;
+                    color: white;
+                    cursor: pointer;
+                }
+                .search-match {
+                    background: yellow;
+                    color: black;
+                }
+                .search-match.current {
+                    background: #ff9800;
+                }
+            `;
+
+                    document.head.appendChild(style);
+                    document.body.appendChild(overlay);
+                    return overlay;
+                }
+
+                performPageSearch(query, overlay) {
+                    const matches = [];
+                    let currentIndex = -1;
+
+                    const regex = new RegExp(query, 'gi');
+                    const walker = document.createTreeWalker(
+                        document.body,
+                        NodeFilter.SHOW_TEXT,
+                        null,
+                        false
+                    );
+
+                    let node;
+                    while (node = walker.nextNode()) {
+                        const nodeText = node.textContent;
+                        let match;
+                        while ((match = regex.exec(nodeText)) !== null) {
+                            matches.push({
+                                node: node,
+                                index: match.index,
+                                text: match[0]
+                            });
+                        }
+                    }
+
+                    const resultCount = overlay.querySelector('.result-count');
+                    resultCount.textContent = `${matches.length} matches found`;
+
+                    matches.forEach((match, idx) => {
+                        const range = document.createRange();
+                        range.setStart(match.node, match.index);
+                        range.setEnd(match.node, match.index + match.text.length);
+
+                        const highlight = document.createElement('span');
+                        highlight.className = 'search-match';
+                        highlight.textContent = match.text;
+                        range.deleteContents();
+                        range.insertNode(highlight);
+                    });
+
+                    const prevButton = overlay.querySelector('.prev-result');
+                    const nextButton = overlay.querySelector('.next-result');
+
+                    const highlightCurrent = () => {
+                        document.querySelectorAll('.search-match.current').forEach(el => {
+                            el.classList.remove('current');
+                        });
+
+                        const element = document.querySelectorAll('.search-match')[currentIndex];
+                        if (element) {
+                            element.classList.add('current');
+                            element.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center'
+                            });
+                        }
+                    };
+
+                    prevButton.onclick = () => {
+                        if (matches.length === 0) return;
+                        currentIndex = (currentIndex - 1 + matches.length) % matches.length;
+                        highlightCurrent();
+                    };
+
+                    nextButton.onclick = () => {
+                        if (matches.length === 0) return;
+                        currentIndex = (currentIndex + 1) % matches.length;
+                        highlightCurrent();
+                    };
+
+                    if (matches.length > 0) {
+                        currentIndex = 0;
+                        highlightCurrent();
                     }
                 }
 
@@ -1065,13 +1257,13 @@ if (!window.navigoController) {
 
                     this.recognition.onresult = (event) => {
                         const last = event.results.length - 1;
-                        
+
                         for (let i = 0; i < event.results[last].length; i++) {
                             const transcript = event.results[last][i].transcript.trim().toLowerCase();
                             const confidence = event.results[last][i].confidence;
-                            
+
                             console.log(`🎤 Heard (${confidence.toFixed(2)}): "${transcript}"`);
-                            
+
                             if (this.isWakeWord(transcript)) {
                                 console.log('🎯 Wake word detected in alternative', i);
                                 this.handleWakeWord();
@@ -1111,11 +1303,11 @@ if (!window.navigoController) {
                     console.log('🎯 Wake word detected - activating command mode');
                     this.commandMode = true;
                     this.showVisualFeedback('🎯 Hey Navigo activated! Ready for commands...', 'command');
-                    
+
                     if (this.commandModeTimeout) {
                         clearTimeout(this.commandModeTimeout);
                     }
-                    
+
                     this.commandModeTimeout = setTimeout(() => {
                         if (this.commandMode) {
                             this.commandMode = false;
@@ -1184,33 +1376,33 @@ if (!window.navigoController) {
                             this.showVisualFeedback('⬇️ Going to bottom');
                             commandExecuted = true;
                         },
-                       'close': () => {
-                        console.log('📜 Executing: close');
-                        try {
-                            // Multiple strategies to close window
-                            if (window.close) {
-                                window.close();
-                            }
-                            
-                            // Fallback method
-                            if (!window.closed) {
-                                window.open('', '_self').close();
-                            }
-
-                            // If still not closed
-                            if (!window.closed) {
-                                // Browser-specific alternatives
-                                if (window.history && window.history.length > 1) {
-                                    window.history.back();
-                                } else {
-                                    alert('Cannot automatically close this tab. Please close manually.');
+                        'close': () => {
+                            console.log('📜 Executing: close');
+                            try {
+                                // Multiple strategies to close window
+                                if (window.close) {
+                                    window.close();
                                 }
+
+                                // Fallback method
+                                if (!window.closed) {
+                                    window.open('', '_self').close();
+                                }
+
+                                // If still not closed
+                                if (!window.closed) {
+                                    // Browser-specific alternatives
+                                    if (window.history && window.history.length > 1) {
+                                        window.history.back();
+                                    } else {
+                                        alert('Cannot automatically close this tab. Please close manually.');
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Window close error:', error);
+                                alert('Failed to close window. Please close manually.');
                             }
-                        } catch (error) {
-                            console.error('Window close error:', error);
-                            alert('Failed to close window. Please close manually.');
                         }
-                    }
 
                     };
 
@@ -1262,7 +1454,7 @@ if (!window.navigoController) {
 
                 isWakeWord(transcript) {
                     console.log('🔍 Checking wake word in:', transcript);
-                    
+
                     const wakeWords = [
                         'hey navigo',
                         'hey navigate',
@@ -1308,8 +1500,8 @@ if (!window.navigoController) {
                     const lastTwoWords = words.slice(-2).join(' ');
                     const lastThreeWords = words.slice(-3).join(' ');
 
-                    if (lastTwoWords.includes('nav') || 
-                        lastTwoWords.includes('now') || 
+                    if (lastTwoWords.includes('nav') ||
+                        lastTwoWords.includes('now') ||
                         lastTwoWords.includes('hey') ||
                         lastThreeWords.includes('hey') ||
                         lastThreeWords.includes('nav') ||
@@ -1437,7 +1629,7 @@ if (!window.navigoController) {
                 padding: 0 5px;
                 color: #666;
             `;
-            
+
             closeButton.onclick = () => {
                 container.remove();
                 this.removeLoadingIndicator(); // Ensure loading indicator is removed
