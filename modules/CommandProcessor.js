@@ -1,5 +1,5 @@
 import { summarizePage, summarizeText } from './aisummarizer.js';
-import Feedback from './Feedback.js';
+import Feedback from './feedback.js';
 
 class CommandProcessor {
   constructor() {
