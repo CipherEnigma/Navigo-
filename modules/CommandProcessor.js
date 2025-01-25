@@ -63,13 +63,12 @@ class CommandProcessor {
       return;
     }
 
-    // Create or show search overlay
     let searchOverlay = document.getElementById('navigo-search-overlay');
     if (!searchOverlay) {
       searchOverlay = this.createSearchOverlay();
     }
     
-    // Perform page search
+ 
     this.searchPage(searchQuery, searchOverlay);
   }
 
@@ -151,7 +150,6 @@ class CommandProcessor {
     document.head.appendChild(style);
     document.body.appendChild(overlay);
 
-    // Add close button functionality
     const closeButton = overlay.querySelector('.close-search');
     closeButton.onclick = () => {
       this.clearSearchHighlights();
@@ -162,13 +160,13 @@ class CommandProcessor {
   }
 
   searchPage(query, overlay) {
-    // Clear previous search highlights
+   
     this.clearSearchHighlights();
 
     const matches = [];
     let currentIndex = -1;
 
-    // Find all matches
+    
     const regex = new RegExp(query, 'gi');
     const walker = document.createTreeWalker(
       document.body,
@@ -190,11 +188,11 @@ class CommandProcessor {
       }
     }
 
-    // Update UI
+    
     const resultCount = overlay.querySelector('.result-count');
     resultCount.textContent = `${matches.length} matches found`;
 
-    // Highlight matches
+   
     matches.forEach((match, idx) => {
       const range = document.createRange();
       range.setStart(match.node, match.index);
@@ -239,7 +237,6 @@ class CommandProcessor {
       highlightCurrent();
     };
 
-    // Initial highlight
     if (matches.length > 0) {
       currentIndex = 0;
       highlightCurrent();
@@ -256,7 +253,6 @@ class CommandProcessor {
 
 const commandProcessor = new CommandProcessor();
 
-// Existing commands
 commandProcessor.registerCommand('scroll down', () => window.scrollBy(0, 200));
 commandProcessor.registerCommand('scroll up', () => window.scrollBy(0, -200));
 commandProcessor.registerCommand('click', () => {
