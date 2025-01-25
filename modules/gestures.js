@@ -81,6 +81,7 @@ function createControlPanel() {
     startButton.onclick = async () => {
         try {
             if (!cameraActive) {
+                // Start camera
                 statusText.textContent = 'Starting camera...';
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { 
@@ -90,6 +91,7 @@ function createControlPanel() {
                     }
                 });
 
+                // Create video element
                 videoElement = document.createElement('video');
                 videoElement.className = 'input_video';
                 videoElement.autoplay = true;
@@ -215,6 +217,7 @@ function startMotionDetection(videoElement, statusText) {
                 verticalCount = 0;
                 horizontalCount = 0;
                 lastDirection = null;
+                // Gradually update neutral position
                 neutralPosition = {
                     vertical: neutralPosition.vertical * 0.8 + (topRegion - bottomRegion) * 0.2,
                     horizontal: neutralPosition.horizontal * 0.8 + (leftRegion - rightRegion) * 0.2
@@ -249,6 +252,7 @@ function startMotionDetection(videoElement, statusText) {
                     }
                     lastVerticalPosition = verticalDiff;
                 }
+                // Handle horizontal navigation - requires very distinct sideways movement
                 else if (Math.abs(horizontalDiff) > 40 && Math.abs(verticalDiff) < 10) {
                     const currentDirection = horizontalDiff > 0 ? 'right' : 'left';
                     
@@ -322,7 +326,8 @@ function calculateMovement(prev, curr) {
     let diffY = 0;
     let changes = 0;
     
-    const sampleSize = 10; 
+    // Sample fewer pixels for faster processing
+    const sampleSize = 10; // Check every 10th pixel
     
     for (let y = 0; y < height; y += sampleSize) {
         for (let x = 0; x < width; x += sampleSize) {
@@ -351,6 +356,7 @@ function focusNextElement() {
     const nextIndex = (currentIndex + 1) % focusableElements.length;
     const nextElement = focusableElements[nextIndex];
     nextElement.focus();
+    // Add visual feedback
     nextElement.style.outline = '2px solid #4CAF50';
     nextElement.style.transition = 'all 0.3s';
     setTimeout(() => {
