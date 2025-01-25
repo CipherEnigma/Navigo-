@@ -144,7 +144,7 @@ if (!window.navigoController) {
                         });
                     }
 
-                    // Wait a bit to ensure everything is initialized
+                  
                     setTimeout(() => {
                         if (window.Hands) {
                             resolve(window.Hands);
@@ -166,13 +166,11 @@ if (!window.navigoController) {
                 return;
             }
 
-            // Load MediaPipe before creating toolbar
             try {
                 await this.loadMediaPipeScript();
                 console.log('MediaPipe Hands loaded successfully');
             } catch (error) {
                 console.error('Failed to load MediaPipe:', error);
-                // Continue without hand gestures if MediaPipe fails to load
             }
 
             console.log('Injecting toolbar');
@@ -275,7 +273,7 @@ if (!window.navigoController) {
 
         async checkMicrophoneStatus() {
             try {
-                // List available audio devices
+               
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const microphones = devices.filter(device => device.kind === 'audioinput');
 
@@ -286,7 +284,7 @@ if (!window.navigoController) {
                     return false;
                 }
 
-                // Test microphone access
+              
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
