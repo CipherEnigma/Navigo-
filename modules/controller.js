@@ -1,25 +1,25 @@
-// Maintain state for each tab
+
 let tabStates = new Map();
 
-// Handle extension installation or update
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Extension installed/updated');
   initializeExtension();
 });
 
-// Initialize extension settings and state
+
 function initializeExtension() {
-  // Reset tab states
+
   tabStates = new Map();
   
-  // Set default states for voice and gesture navigation
+
   const defaultState = {
     voiceActive: false,
     gestureActive: false,
     toolbarVisible: false
   };
 
-  // Apply to all existing tabs
+ 
   chrome.tabs.query({}, (tabs) => {
     tabs.forEach(tab => {
       tabStates.set(tab.id, { ...defaultState });
@@ -27,7 +27,7 @@ function initializeExtension() {
   });
 }
 
-// Listen for new tab creation
+
 chrome.tabs.onCreated.addListener((tab) => {
   tabStates.set(tab.id, {
     voiceActive: false,
@@ -36,7 +36,7 @@ chrome.tabs.onCreated.addListener((tab) => {
   });
 });
 
-// Clean up when tab is closed
+
 chrome.tabs.onRemoved.addListener((tabId) => {
   tabStates.delete(tabId);
 });
@@ -102,7 +102,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-// Handle tab updates to reapply state
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete') {
     const currentState = tabStates.get(tabId) || {
