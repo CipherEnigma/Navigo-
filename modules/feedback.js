@@ -1,71 +1,41 @@
 class Feedback {
-  static showFeedback(message, type = 'info') {
-      let feedback = document.getElementById('navigator-feedback');
-      if (!feedback) {
-          feedback = document.createElement('div');
-          feedback.id = 'navigator-feedback';
-          document.body.appendChild(feedback);
-      }
-      
-      feedback.textContent = message;
-      feedback.className = `navigator-feedback ${type}`;
-      setTimeout(() => feedback.remove(), 2000);
-  }
-
-  static showPopup(title, content, options = {}) {
-      const popup = document.createElement('div');
-      popup.className = 'navigator-popup';
-      popup.innerHTML = `
-          <div class="popup-header">
-              <h3>${title}</h3>
-              <button class="close-popup">×</button>
-          </div>
-          <div class="popup-content">${content}</div>
-      `;
-
-      const style = document.createElement('style');
-      style.textContent = `
-          .navigator-popup {
-              position: fixed;
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              background: white;
-              border-radius: 8px;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-              z-index: 10000;
-              max-width: 500px;
-              width: 90%;
-              max-height: 80%;
-              overflow: auto;
-              padding: 15px;
-          }
-          .popup-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              border-bottom: 1px solid #eee;
-              padding-bottom: 10px;
-          }
-          .close-popup {
-              background: none;
-              border: none;
-              font-size: 24px;
-              cursor: pointer;
-          }
-      `;
-
-      document.head.appendChild(style);
-      document.body.appendChild(popup);
-
-      const closeButton = popup.querySelector('.close-popup');
-      closeButton.onclick = () => {
-          document.body.removeChild(popup);
-          document.head.removeChild(style);
-      };
-
-      return popup;
-  }
+    static showFeedback(message, type = 'info') {
+        // Remove existing feedback
+        const existing = document.querySelector('.navigo-feedback');
+        if (existing) existing.remove();
+        
+        const feedback = document.createElement('div');
+        feedback.className = `navigo-feedback ${type}`;
+        feedback.textContent = message;
+        feedback.style.cssText = `
+            position: fixed !important;
+            top: 20px !important;
+            right: 20px !important;
+            background: ${this.getBackgroundColor(type)} !important;
+            color: white !important;
+            padding: 12px 20px !important;
+            border-radius: 6px !important;
+            z-index: 999999 !important;
+            font-family: Arial, sans-serif !important;
+            font-size: 14px !important;
+            animation: slideIn 0.3s ease-out !important;
+            max-width: 300px !important;
+            word-wrap: break-word !important;
+        `;
+        
+        document.body.appendChild(feedback);
+        setTimeout(() => feedback.remove(), 3000);
+    }
+    
+    static getBackgroundColor(type) {
+        const colors = {
+            'info': 'rgba(33, 150, 243, 0.95)',
+            'success': 'rgba(76, 175, 80, 0.95)',
+            'error': 'rgba(244, 67, 54, 0.95)',
+            'warning': 'rgba(255, 152, 0, 0.95)'
+        };
+        return colors[type] || colors.info;
+    }
 }
 
 export default Feedback;

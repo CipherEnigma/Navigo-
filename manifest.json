@@ -7,26 +7,10 @@
     "activeTab",
     "storage",
     "scripting",
-    "tabs",
-    "https://cdn.jsdelivr.net/*"
+    "tabs"
   ],
   "host_permissions": [
-    "<all_urls>",
-    "https://cdn.jsdelivr.net/*"
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'",
-    "content_scripts": ["script-src 'self' https://cdn.jsdelivr.net; object-src 'self'"]
-  },
-  "web_accessible_resources": [
-    {
-      "resources": ["modules/*", "content/*"],
-      "matches": ["<all_urls>"]
-    },
-    {
-      "resources": ["modules/aisummarizer.js"],
-      "matches": ["<all_urls>"]
-    }
+    "<all_urls>"
   ],
   "content_scripts": [
     {
@@ -34,8 +18,7 @@
       "js": [
         "content/content.js"
       ],
-      "css": ["content/content.css"],
-      "type": "module"
+      "run_at": "document_end"
     }
   ],
   "action": {
@@ -43,10 +26,5 @@
   },
   "background": {
     "service_worker": "scripts/background.js"
-  },
-  "icons": {
-    "16": "icons/icon-16.png",
-    "48": "icons/icon-48.png",
-    "128": "icons/icon-128.png"
   }
 }

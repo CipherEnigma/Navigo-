@@ -1,39 +1,184 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Navigo</title>
-    <link rel="stylesheet" href="popup.css">
+    <meta charset="utf-8">
+    <style>
+        body {
+            width: 320px;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .feature-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-icon {
+            font-size: 18px;
+            margin-right: 10px;
+        }
+        
+        .feature-text {
+            font-size: 14px;
+        }
+        
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.3);
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #4CAF50;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+        
+        .main-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        
+        .main-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .footer {
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .footer-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+    </style>
 </head>
 <body>
-    <h1>Welcome to Navigo</h1>
-    <p>Choose the feature(s) you would like to use:</p>
-
-    <div class="features">
-        <label class="toggle">
-            <input type="checkbox" id="gestureToggle">
-            <span class="slider"></span>
-            Gesture Navigation
-        </label>
-
+    <div class="header">
+        <div class="logo">Navigo</div>
+        <div class="subtitle">Hands-free navigation</div>
+    </div>
+    
+    <div class="feature">
+        <div class="feature-info">
+            <span class="feature-icon">MIC</span>
+            <span class="feature-text">Voice Navigation</span>
+        </div>
         <label class="toggle">
             <input type="checkbox" id="voiceToggle">
             <span class="slider"></span>
-            Voice Navigation
         </label>
     </div>
-
-    <p>For customization:</p>
-        <button id="dashboardBtn" class="custom">Dashboard</button>
-        <button id="toolbarBtn" class="custom">Open Toolbar</button>
- 
-    <footer>
-        <button id="helpBtn">Help</button>
-        <button id="feedbackBtn">Feedback</button>
-    </footer>
     
-
+    <div class="feature">
+        <div class="feature-info">
+            <span class="feature-icon">HAND</span>
+            <span class="feature-text">Gesture Navigation</span>
+        </div>
+        <label class="toggle">
+            <input type="checkbox" id="gestureToggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <div class="feature">
+        <div class="feature-info">
+            <span class="feature-icon">DOC</span>
+            <span class="feature-text">Page Summary</span>
+        </div>
+        <label class="toggle">
+            <input type="checkbox" id="summarizationToggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <button class="main-btn" id="toolbarBtn">Open Toolbar</button>
+    
+    <div class="footer">
+        <button class="footer-btn" id="dashboardBtn">Dashboard</button>
+        <button class="footer-btn" id="feedbackBtn">Feedback</button>
+        <button class="footer-btn" id="helpBtn">Help</button>
+    </div>
+    
     <script src="popup.js"></script>
 </body>
 </html>

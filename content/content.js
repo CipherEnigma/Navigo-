@@ -2,1764 +2,557 @@ if (!window.navigoController) {
     class ContentController {
         constructor() {
             console.log('ContentController initialized');
-            this.toolbarVisible = false;
+            this.voiceActive = false;
+            this.gestureActive = false;
+            this.recognition = null;
+            this.gestureInterval = null;
+            this.hands = null;
+            this.lastGestureTime = 0;
+            this.gestureDelay = 1000; // Reduced delay
+            this.gestureDebounce = {};
             this.setupMessageListener();
-            this.injectStyles();
-            this.loadSpeechController();
-            this.testVisualFeedback();
-        }
-
-        testVisualFeedback() {
-            console.log('Testing visual feedback...');
-            const feedback = document.createElement('div');
-            feedback.id = 'test-feedback';
-            feedback.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: red;
-                color: white;
-                padding: 15px 25px;
-                border-radius: 8px;
-                font-size: 18px;
-                z-index: 999999;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            `;
-            feedback.textContent = 'Testing Visual Feedback';
-            document.body.appendChild(feedback);
-
-            setTimeout(() => {
-                feedback.remove();
-            }, 3000);
         }
 
         setupMessageListener() {
             chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 console.log('Content script received message:', request);
-
                 try {
-                    if (request.action === 'openToolbar') {
-                        console.log('Opening toolbar...');
-                        this.injectToolbar();
-                        sendResponse({ success: true });
+                    switch (request.action) {
+                        case 'openToolbar':
+                            this.showToolbar();
+                            break;
+                        case 'startGestureNavigation':
+                            this.toggleGestures(request.state);
+                            break;
+                        case 'startVoiceNavigation':
+                            this.toggleVoice(request.state);
+                            break;
+                        case 'summarizePage':
+                            this.summarizePage();
+                            break;
                     }
+                    sendResponse({ success: true });
                 } catch (error) {
-                    console.error('Error handling message:', error);
+                    console.error('Error:', error);
                     sendResponse({ success: false, error: error.message });
                 }
                 return true;
             });
         }
 
-        injectStyles() {
-            const style = document.createElement('style');
-            style.textContent = style.textContent = `
-            .navigo-toolbar {
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #000; /* Black */
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                border-radius: 12px;
-                padding: 20px;
-                z-index: 10000;
-                display: flex;
-                gap: 12px;
-                min-width: 320px;
-                color: #fff;
-                font-family: 'Inter', sans-serif;
-            }
+        showToolbar() {
+            console.log('Showing toolbar...');
+            
+            const existing = document.getElementById('navigo-toolbar');
+            if (existing) existing.remove();
 
-            .navigo-toolbar button {
-                padding: 10px 20px;
-                border: none;
-                border-radius: 6px;
-                background: #6a0dad; /* Purple */
-                color: white;
-                cursor: pointer;
-                transition: background 0.3s, transform 0.2s;
-                font-size: 14px;
-            }
-
-            .navigo-toolbar button:hover {
-                background: #5a0cae; /* Slightly darker purple */
-                transform: translateY(-2px);
-            }
-
-            .navigo-toolbar button.active {
-                background: #28a745; /* Green */
-            }
-
-            #summaryContainer {
-                margin-top: 20px;
-                padding: 15px;
-                background: #1E1E1E; /* Dark Gray */
-                border-radius: 8px;
-                color: #fff;
-            }
-
-            .voice-feedback {
-                position: fixed;
-                bottom: 80px;
-                right: 20px;
-                background: rgba(0,0,0,0.8);
-                color: white;
-                padding: 10px 20px;
-                border-radius: 4px;
-                z-index: 10001;
-            }
-        `;
-            document.head.appendChild(style);
-        }
-
-        async loadMediaPipeScript() {
-            return new Promise(async (resolve, reject) => {
-                try {
-
-                    if (window.Hands) {
-                        resolve(window.Hands);
-                        return;
-                    }
-
-
-                    const dependencies = [
-                        'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js',
-                        'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
-                        'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js',
-                        'https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js'
-                    ];
-
-
-                    for (const url of dependencies) {
-                        await new Promise((resolveScript, rejectScript) => {
-                            const script = document.createElement('script');
-                            script.src = url;
-                            script.crossOrigin = 'anonymous';
-
-                            script.onload = resolveScript;
-                            script.onerror = () => rejectScript(new Error(`Failed to load ${url}`));
-
-                            document.head.appendChild(script);
-                        });
-                    }
-
-                    // Wait a bit to ensure everything is initialized
-                    setTimeout(() => {
-                        if (window.Hands) {
-                            resolve(window.Hands);
-                        } else {
-                            reject(new Error('MediaPipe Hands failed to initialize'));
-                        }
-                    }, 1000);
-
-                } catch (error) {
-                    reject(new Error(`Failed to load MediaPipe: ${error.message}`));
-                }
-            });
-        }
-
-
-        async injectToolbar() {
-            if (document.getElementById('navigo-toolbar')) {
-                console.log('Toolbar already exists');
-                return;
-            }
-
-            // Load MediaPipe before creating toolbar
-            try {
-                await this.loadMediaPipeScript();
-                console.log('MediaPipe Hands loaded successfully');
-            } catch (error) {
-                console.error('Failed to load MediaPipe:', error);
-                // Continue without hand gestures if MediaPipe fails to load
-            }
-
-            console.log('Injecting toolbar');
             const toolbar = document.createElement('div');
             toolbar.id = 'navigo-toolbar';
-            toolbar.className = 'navigo-toolbar';
-
+            toolbar.style.cssText = `
+                position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+                background: #000; border-radius: 12px; padding: 20px; z-index: 10000;
+                display: flex; gap: 12px; color: #fff; font-family: Arial, sans-serif;
+            `;
+            
             toolbar.innerHTML = `
-                <div class="toolbar-controls">
-                    <button id="listMics" data-feature="List Microphones">List Microphones</button>
-                    <button id="voiceNav" data-feature="Voice Navigation">Start Voice Navigation</button>
-                    <button id="gestureNav" data-feature="Gesture Navigation">Start Gesture Navigation</button>
-                    <button id="closeToolbar">Close</button>
-                </div>
-                <div id="microphoneList" style="display: none; margin-top: 10px;">
-                    <h3>Available Microphones:</h3>
-                    <ul id="micList" style="list-style: none; padding: 0;"></ul>
-                </div>
-                <div id="micLevel" style="display: none; margin-top: 10px;">
-                    <label>Microphone Level:</label>
-                    <div class="mic-meter">
-                        <div class="mic-level-bar"></div>
-                    </div>
-                </div>
+                <button id="voice-btn" style="padding: 10px 20px; border: none; border-radius: 6px; background: ${this.voiceActive ? '#28a745' : '#6a0dad'}; color: white; cursor: pointer;">
+                    ${this.voiceActive ? 'Stop Voice' : 'Start Voice'}
+                </button>
+                <button id="gesture-btn" style="padding: 10px 20px; border: none; border-radius: 6px; background: ${this.gestureActive ? '#28a745' : '#6a0dad'}; color: white; cursor: pointer;">
+                    ${this.gestureActive ? 'Stop Gestures' : 'Start Gestures'}
+                </button>
+                <button id="close-btn" style="padding: 10px 20px; border: none; border-radius: 6px; background: #dc3545; color: white; cursor: pointer;">Close</button>
             `;
 
-            const style = document.createElement('style');
-            style.textContent = `
-            .navigo-toolbar {
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #0A192F; /* Dark Blue */
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                border-radius: 12px;
-                padding: 20px;
-                z-index: 10000;
-                min-width: 320px;
-                color: #fff;
-                font-family: 'Inter', sans-serif;
-            }
-            .toolbar-controls {
-                display: flex;
-                gap: 12px;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            .toolbar-controls button {
-                padding: 10px 20px;
-                border: none;
-                border-radius: 6px;
-                background: #1E90FF; /* Dodger Blue */
-                color: white;
-                cursor: pointer;
-                transition: background 0.3s, transform 0.2s;
-                font-size: 14px;
-            }
-            .toolbar-controls button:hover {
-                background: #1C86EE; /* Slightly darker blue */
-                transform: translateY(-2px);
-            }
-            .toolbar-controls button:disabled {
-                background: #A9A9A9; /* Dark Gray */
-                cursor: not-allowed;
-            }
-            #microphoneList {
-                margin-top: 20px;
-                background: #1E1E1E; /* Dark Gray */
-                padding: 15px;
-                border-radius: 8px;
-                color: #fff;
-            }
-            #micList li {
-                padding: 10px 15px;
-                margin: 8px 0;
-                background: #2E2E2E; /* Slightly lighter gray */
-                border-radius: 5px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-            #micList li:hover {
-                background: #3E3E3E; /* Even lighter gray */
-            }
-        `;
-            document.head.appendChild(style);
-
             document.body.appendChild(toolbar);
+            console.log('Toolbar added to page');
 
-            // Check if toolbar is in the DOM
-            if (!document.getElementById('navigo-toolbar')) {
-                console.error('Failed to inject toolbar into the DOM');
+            document.getElementById('voice-btn').onclick = () => {
+                this.toggleVoice();
+            };
+
+            document.getElementById('gesture-btn').onclick = () => {
+                this.toggleGestures();
+            };
+
+            document.getElementById('close-btn').onclick = () => {
+                this.cleanup();
+                toolbar.remove();
+                console.log('Toolbar closed');
+            };
+
+            this.showFeedback('Toolbar opened');
+        }
+
+        toggleVoice(state = null) {
+            if (state !== null) {
+                this.voiceActive = state;
+            } else {
+                this.voiceActive = !this.voiceActive;
+            }
+            
+            console.log('Voice toggled:', this.voiceActive);
+            
+            if (this.voiceActive) {
+                this.startVoice();
+            } else {
+                this.stopVoice();
+            }
+            
+            this.updateToolbar();
+        }
+
+        startVoice() {
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                if (!SpeechRecognition) {
+                    throw new Error('Speech recognition not supported');
+                }
+
+                this.recognition = new SpeechRecognition();
+                this.recognition.continuous = true;
+                this.recognition.interimResults = false;
+                this.recognition.lang = 'en-US';
+
+                this.recognition.onresult = (event) => {
+                    const command = event.results[event.results.length - 1][0].transcript.toLowerCase().trim();
+                    console.log('Voice command:', command);
+                    this.processVoiceCommand(command);
+                };
+
+                this.recognition.onend = () => {
+                    if (this.voiceActive) {
+                        this.recognition.start();
+                    }
+                };
+
+                this.recognition.onerror = (event) => {
+                    console.error('Voice recognition error:', event.error);
+                    this.showFeedback('Voice error: ' + event.error);
+                };
+
+                this.recognition.start();
+                this.showFeedback('Voice navigation started');
+            } catch (error) {
+                console.error('Voice start error:', error);
+                this.showFeedback('Voice not supported');
+                this.voiceActive = false;
+                this.updateToolbar();
+            }
+        }
+
+        processVoiceCommand(command = '') {
+            const commands = {
+                'scroll up': () => {
+                    window.scrollBy({ top: -300, behavior: 'smooth' });
+                    this.showFeedback('Scrolling up');
+                },
+                'scroll down': () => {
+                    window.scrollBy({ top: 300, behavior: 'smooth' });
+                    this.showFeedback('Scrolling down');
+                },
+                'go back': () => {
+                    window.history.back();
+                    this.showFeedback('Going back');
+                },
+                'go forward': () => {
+                    window.history.forward();
+                    this.showFeedback('Going forward');
+                },
+                'reload': () => {
+                    window.location.reload();
+                    this.showFeedback('Reloading page');
+                },
+                'top': () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    this.showFeedback('Going to top');
+                },
+                'bottom': () => {
+                    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    this.showFeedback('Going to bottom');
+                }
+            };
+
+            for (const [key, action] of Object.entries(commands)) {
+                if (command.includes(key)) {
+                    action();
+                    return;
+                }
+            }
+            
+            console.log('Unknown voice command:', command);
+        }
+
+        stopVoice() {
+            if (this.recognition) {
+                this.recognition.stop();
+                this.recognition = null;
+            }
+            this.showFeedback('Voice navigation stopped');
+        }
+
+        toggleGestures(state = null) {
+            if (state !== null) {
+                this.gestureActive = state;
+            } else {
+                this.gestureActive = !this.gestureActive;
+            }
+            
+            console.log('Gestures toggled:', this.gestureActive);
+            
+            if (this.gestureActive) {
+                this.startGestures();
+            } else {
+                this.stopGestures();
+            }
+            
+            this.updateToolbar();
+        }
+
+        async startGestures() {
+            try {
+                console.log('Starting gesture recognition...');
+                
+                // First get camera permission and setup video
+                const video = await this.setupCamera();
+                console.log('Camera setup successful');
+                
+                // Then load MediaPipe
+                await this.loadMediaPipe();
+                console.log('MediaPipe loaded successfully');
+                
+                // Finally start detection
+                await this.startGestureDetection(video);
+                console.log('Gesture detection started');
+                
+                this.showFeedback('Gesture navigation started');
+            } catch (error) {
+                console.error('Gesture start error:', error);
+                this.showFeedback('Error: ' + error.message);
+                this.gestureActive = false;
+                this.updateToolbar();
+            }
+        }
+
+        async setupCamera() {
+            console.log('Setting up camera...');
+            
+            // Clean up any existing camera
+            const existingVideo = document.getElementById('gesture-camera');
+            if (existingVideo) {
+                if (existingVideo.srcObject) {
+                    existingVideo.srcObject.getTracks().forEach(track => track.stop());
+                }
+                existingVideo.remove();
+            }
+
+            // Remove any existing instruction panel
+            const existingPanel = document.getElementById('gesture-instructions');
+            if (existingPanel) {
+                existingPanel.remove();
+            }
+
+            const video = document.createElement('video');
+            video.id = 'gesture-camera';
+            video.style.cssText = `
+                position: fixed; bottom: 180px; right: 20px; width: 200px; height: 150px;
+                border: 3px solid #4CAF50; border-radius: 8px; transform: scaleX(-1);
+                z-index: 999998; background: #000;
+            `;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+            
+            // Add instruction panel
+            const instructionPanel = document.createElement('div');
+            instructionPanel.id = 'gesture-instructions';
+            instructionPanel.style.cssText = `
+                position: fixed; bottom: 340px; right: 20px; width: 194px;
+                background: rgba(0, 0, 0, 0.9); color: white; padding: 12px;
+                border-radius: 8px; font-family: Arial, sans-serif; font-size: 11px;
+                z-index: 999999; text-align: center;
+            `;
+            instructionPanel.innerHTML = `
+                <div style="font-weight: bold; color: #4CAF50; margin-bottom: 8px;">Simple Motion Gestures</div>
+                <div>Move your hand or head:</div>
+                <div>• Up = Scroll Up</div>
+                <div>• Down = Scroll Down</div>
+                <div>• Left = Go Back</div>
+                <div>• Right = Go Forward</div>
+                <div style="margin-top: 8px; font-size: 10px; opacity: 0.8;">Make clear movements</div>
+            `;
+            
+            try {
+                console.log('Requesting camera access...');
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { 
+                        width: { ideal: 320 }, 
+                        height: { ideal: 240 }, 
+                        facingMode: 'user' 
+                    }
+                });
+                
+                console.log('Camera stream obtained');
+                video.srcObject = stream;
+                document.body.appendChild(video);
+                document.body.appendChild(instructionPanel);
+                
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Video loading timeout'));
+                    }, 5000);
+                    
+                    video.onloadedmetadata = () => {
+                        clearTimeout(timeout);
+                        console.log('Video metadata loaded');
+                        video.play()
+                            .then(() => {
+                                console.log('Video playing');
+                                resolve(video);
+                            })
+                            .catch(reject);
+                    };
+                    
+                    video.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Video load failed'));
+                    };
+                });
+                
+            } catch (error) {
+                console.error('Camera access failed:', error);
+                throw new Error('Camera access denied. Please allow camera access.');
+            }
+        }
+
+        async loadMediaPipe() {
+            console.log('Skipping MediaPipe - using simple gesture detection instead');
+            // Instead of loading MediaPipe, we'll use simple motion detection
+            return Promise.resolve();
+        }
+
+        async startGestureDetection(video) {
+            console.log('Starting simple gesture detection...');
+            
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 160;
+                canvas.height = 120;
+                const ctx = canvas.getContext('2d');
+                
+                let previousFrame = null;
+                
+                this.gestureInterval = setInterval(() => {
+                    if (this.gestureActive && video && video.videoWidth > 0 && video.readyState >= 2) {
+                        try {
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            
+                            if (previousFrame) {
+                                const motion = this.detectMovement(previousFrame, currentFrame);
+                                
+                                if (motion.detected) {
+                                    console.log('Motion detected:', motion);
+                                    this.executeGesture(motion.direction);
+                                }
+                            }
+                            
+                            previousFrame = currentFrame;
+                        } catch (err) {
+                            console.warn('Detection error:', err);
+                        }
+                    }
+                }, 100); // Faster detection
+                
+                console.log('Simple gesture detection initialized');
+            } catch (error) {
+                console.error('Error initializing gesture detection:', error);
+                throw error;
+            }
+        }
+
+        detectMovement(prevFrame, currFrame) {
+            const prevData = prevFrame.data;
+            const currData = currFrame.data;
+            const width = currFrame.width;
+            const height = currFrame.height;
+            
+            let totalChange = 0;
+            let leftChange = 0;
+            let rightChange = 0;
+            let topChange = 0;
+            let bottomChange = 0;
+            
+            // Divide frame into regions
+            const midX = width / 2;
+            const midY = height / 2;
+            
+            for (let i = 0; i < prevData.length; i += 12) { // More pixels sampled
+                const r1 = prevData[i];
+                const g1 = prevData[i + 1];
+                const b1 = prevData[i + 2];
+                
+                const r2 = currData[i];
+                const g2 = currData[i + 1];
+                const b2 = currData[i + 2];
+                
+                const diff = Math.abs(r1 - r2) + Math.abs(g1 - g2) + Math.abs(b1 - b2);
+                
+                if (diff > 20) { // Lower threshold
+                    const pixelIndex = i / 4;
+                    const x = pixelIndex % width;
+                    const y = Math.floor(pixelIndex / width);
+                    
+                    totalChange += diff;
+                    
+                    if (x < midX) leftChange += diff;
+                    else rightChange += diff;
+                    
+                    if (y < midY) topChange += diff;
+                    else bottomChange += diff;
+                }
+            }
+            
+            if (totalChange > 2000) { // Much lower threshold
+                const horizontalDiff = Math.abs(leftChange - rightChange);
+                const verticalDiff = Math.abs(topChange - bottomChange);
+                
+                if (horizontalDiff > verticalDiff) {
+                    return {
+                        detected: true,
+                        direction: leftChange > rightChange ? 'go_back' : 'go_forward'
+                    };
+                } else {
+                    return {
+                        detected: true,
+                        direction: topChange > bottomChange ? 'scroll_up' : 'scroll_down'
+                    };
+                }
+            }
+            
+            return { detected: false };
+        }
+
+        executeGesture(gesture) {
+            if (!gesture) return;
+            
+            const now = Date.now();
+            
+            // Simple debounce - only allow one gesture every 2 seconds
+            if (this.gestureDebounce[gesture] && (now - this.gestureDebounce[gesture]) < 2000) {
                 return;
             }
 
-            console.log('Toolbar injected successfully');
-            this.addToolbarListeners();
-            this.toolbarVisible = true;
-        }
-
-        async checkMicrophoneStatus() {
-            try {
-                // List available audio devices
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const microphones = devices.filter(device => device.kind === 'audioinput');
-
-                console.log('Available microphones:', microphones);
-
-                if (microphones.length === 0) {
-                    this.showFeedback('No microphones found! Please connect a microphone.');
-                    return false;
+            const actions = {
+                'scroll_up': () => {
+                    window.scrollBy({ top: -300, behavior: 'smooth' });
+                    this.showFeedback('Scroll Up');
+                },
+                'scroll_down': () => {
+                    window.scrollBy({ top: 300, behavior: 'smooth' });
+                    this.showFeedback('Scroll Down');
+                },
+                'go_back': () => {
+                    window.history.back();
+                    this.showFeedback('Go Back');
+                },
+                'go_forward': () => {
+                    window.history.forward();
+                    this.showFeedback('Go Forward');
                 }
-
-                // Test microphone access
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-
-                console.log('Microphone access granted:', stream);
-
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const analyser = audioContext.createAnalyser();
-                const microphone = audioContext.createMediaStreamSource(stream);
-                microphone.connect(analyser);
-
-                analyser.fftSize = 256;
-                const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
-
-                const activeMic = microphones.find(m => m.deviceId === stream.getAudioTracks()[0].getSettings().deviceId);
-                this.showFeedback(`Using microphone: ${activeMic ? activeMic.label : 'Default device'}`);
-
-                return new Promise((resolve) => {
-                    const checkSound = () => {
-                        analyser.getByteFrequencyData(dataArray);
-                        const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-                        console.log('Current microphone level:', average);
-
-                        if (average > 0) {
-                            console.log('Sound detected!');
-                            stream.getTracks().forEach(track => track.stop());
-                            audioContext.close();
-                            resolve(true);
-                        } else {
-                            this.showFeedback('Speak to test microphone...');
-                            setTimeout(checkSound, 100);
-                        }
-                    };
-
-                    checkSound();
-                });
-            } catch (error) {
-                console.error('Microphone check failed:', error);
-                this.showFeedback(`Microphone Error: ${error.message}`);
-                return false;
-            }
-        }
-
-        async listAvailableMicrophones() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const microphones = devices.filter(device => device.kind === 'audioinput');
-
-                console.log('Available Microphones:');
-                microphones.forEach((mic, index) => {
-                    console.log(`${index + 1}. ${mic.label || 'Unnamed Microphone'} (${mic.deviceId})`);
-                });
-
-                // Show in UI
-                let micList = 'Available Microphones:\n';
-                microphones.forEach((mic, index) => {
-                    micList += `${index + 1}. ${mic.label || 'Unnamed Microphone'}\n`;
-                });
-                this.showFeedback(micList);
-
-                return microphones;
-            } catch (error) {
-                console.error('Error listing microphones:', error);
-                this.showFeedback('Error listing microphones: ' + error.message);
-                return [];
-            }
-        }
-
-        async toggleVoiceNavigation(state) {
-            console.log('Attempting to toggle voice navigation:', state);
-
-            if (state) {
-                try {
-                    const micStatus = await this.checkMicrophoneStatus();
-                    console.log('Microphone status:', micStatus);
-
-                    if (micStatus) {
-                        if (!this.speechController) {
-                            console.log('Initializing speech controller');
-                            this.showFeedback('Initializing voice navigation...');
-
-                            await new Promise(resolve => setTimeout(resolve, 1000));
-
-                            this.speechController = new this.SpeechController();
-
-                            if (!this.speechController.recognition) {
-                                throw new Error('Speech recognition failed to initialize');
-                            }
-                        }
-
-                        await new Promise(resolve => setTimeout(resolve, 500));
-
-                        console.log('Starting speech recognition');
-                        await this.speechController.start();
-
-                        if (!this.speechController.isListening) {
-                            throw new Error('Failed to start speech recognition');
-                        }
-
-                        this.showFeedback('Voice navigation activated. Say "Hey Navigo" to start.');
-
-                        this.voiceStatusInterval = setInterval(() => {
-                            if (!this.speechController.isListening) {
-                                console.log('Restarting speech recognition...');
-                                this.speechController.start();
-                            }
-                        }, 5000);
-
-                    } else {
-                        throw new Error('Microphone not working or not accessible');
-                    }
-                } catch (error) {
-                    console.error('Voice navigation error:', error);
-                    this.showFeedback(`Error: ${error.message}`);
-                    const voiceNav = document.getElementById('voiceNav');
-                    if (voiceNav) {
-                        this.updateButtonState(voiceNav, false);
-                    }
-                }
-            } else if (this.speechController) {
-                console.log('Stopping speech recognition');
-
-                if (this.voiceStatusInterval) {
-                    clearInterval(this.voiceStatusInterval);
-                    this.voiceStatusInterval = null;
-                }
-
-                await this.speechController.stop();
-                this.showFeedback('Voice navigation deactivated');
-
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                this.speechController = null;
-            }
-        }
-
-        async toggleGestureNavigation(state) {
-            console.log('🎥 Toggling gesture navigation:', state ? 'ON' : 'OFF');
-
-            if (state) {
-                try {
-                    if (!window.Hands) {
-                        this.showFeedback('Loading gesture recognition...');
-                        this.loadMediaPipeScript()
-                            .then(() => {
-                                this.initializeGestureRecognition();
-                            })
-                            .catch(error => {
-                                console.error('Failed to load MediaPipe:', error);
-                                this.showFeedback('Error: Could not load gesture recognition');
-                                const gestureNav = document.getElementById('gestureNav');
-                                if (gestureNav) {
-                                    this.updateButtonState(gestureNav, false);
-                                }
-                            });
-                    } else {
-                        this.initializeGestureRecognition();
-                    }
-                } catch (error) {
-                    console.error('❌ Error initializing gestures:', error);
-                    this.showFeedback('❌ Error: ' + error.message);
-
-                    const gestureNav = document.getElementById('gestureNav');
-                    if (gestureNav) {
-                        this.updateButtonState(gestureNav, false);
-                    }
-                }
-            } else {
-                console.log('🛑 Stopping gesture navigation...');
-
-                if (this.gestureDetectionInterval) {
-                    clearInterval(this.gestureDetectionInterval);
-                    this.gestureDetectionInterval = null;
-                }
-
-                const videoElement = document.querySelector('.input_video');
-                const canvasElement = document.querySelector('.output_canvas');
-                const indicator = document.getElementById('gesture-indicator');
-
-                if (videoElement) {
-                    const stream = videoElement.srcObject;
-                    if (stream) {
-                        stream.getTracks().forEach(track => {
-                            track.stop();
-                            console.log('Stopped track:', track.kind);
-                        });
-                    }
-                    videoElement.remove();
-                }
-
-                if (canvasElement) canvasElement.remove();
-                if (indicator) indicator.remove();
-
-                this.showFeedback('🛑 Gesture navigation deactivated');
-            }
-        }
-
-        async initializeGestureRecognition() {
-            // Create video and canvas elements as before
-            if (!document.querySelector('.input_video')) {
-                const videoElement = document.createElement('video');
-                videoElement.className = 'input_video';
-                videoElement.style.cssText = `
-                    position: fixed;
-                    right: 0;
-                    bottom: 140px;
-                    width: 192px;
-                    height: 144px;
-                    border-radius: 8px;
-                    border: 2px solid #2196F3;
-                    z-index: 999998;
-                    transform: scaleX(-1); /* Mirror the video */
-                    background: #000;
-                `;
-                videoElement.autoplay = true;
-                videoElement.playsInline = true;
-                document.body.appendChild(videoElement);
-                console.log('📹 Video element created');
-            }
-
-            if (!document.querySelector('.output_canvas')) {
-                const canvasElement = document.createElement('canvas');
-                canvasElement.className = 'output_canvas';
-                canvasElement.width = 640;
-                canvasElement.height = 480;
-                canvasElement.style.cssText = `
-                    position: fixed;
-                    right: 0;
-                    bottom: 140px;
-                    width: 192px;
-                    height: 144px;
-                    border-radius: 8px;
-                    border: 2px solid #2196F3;
-                    background: rgba(0,0,0,0.5);
-                    z-index: 999999;
-                `;
-                document.body.appendChild(canvasElement);
-                console.log('🎨 Canvas element created');
-            }
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 640 },
-                        height: { ideal: 480 },
-                        facingMode: 'user'
-                    }
-                });
-
-                const videoElement = document.querySelector('.input_video');
-                videoElement.srcObject = stream;
-
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play()
-                        .then(() => {
-                            console.log('▶️ Video playback started');
-                            this.startGestureDetection(videoElement);
-                        })
-                        .catch(err => console.error('❌ Video playback error:', err));
-                };
-
-                const hands = await intiialiseMediaPipe();
-                hands.onResults(onHandResults);
-
-                const indicator = document.createElement('div');
-                indicator.id = 'gesture-indicator';
-                indicator.textContent = '🎥 Camera Active';
-                indicator.style.cssText = `
-                    position: fixed;
-                    bottom: 290px;
-                    right: 10px;
-                    background: rgba(0, 0, 0, 0.8);
-                    color: white;
-                    padding: 5px 10px;
-                    border-radius: 5px;
-                    z-index: 999999;
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                `;
-                document.body.appendChild(indicator);
-
-                this.showFeedback('✅ Gesture navigation activated');
-
-            } catch (error) {
-                console.error('❌ Error accessing camera:', error);
-                throw new Error('Could not access camera: ' + error.message);
-            }
-        }
-
-        addToolbarListeners() {
-            const elements = {
-                listMics: document.getElementById('listMics'),
-                voiceNav: document.getElementById('voiceNav'),
-                gestureNav: document.getElementById('gestureNav'),
-                closeToolbar: document.getElementById('closeToolbar'),
-                microphoneList: document.getElementById('microphoneList'),
-                micList: document.getElementById('micList'),
-                micLevel: document.getElementById('micLevel')
             };
 
-            let state = {
-                isVoiceActive: false,
-                isGestureActive: false
-            };
+            if (actions[gesture]) {
+                try {
+                    actions[gesture]();
+                    this.gestureDebounce[gesture] = now;
+                    console.log('Gesture executed:', gesture);
+                } catch (error) {
+                    console.error('Gesture execution error:', error);
+                }
+            }
+        }
 
-            elements.voiceNav.addEventListener('click', () => {
-                state.isVoiceActive = !state.isVoiceActive;
-                this.toggleVoiceNavigation(state.isVoiceActive);
-                this.updateButtonState(elements.voiceNav, state.isVoiceActive);
-            });
+        stopGestures() {
+            console.log('Stopping gesture recognition...');
+            
+            if (this.gestureInterval) {
+                clearInterval(this.gestureInterval);
+                this.gestureInterval = null;
+            }
+            
+            const video = document.getElementById('gesture-camera');
+            if (video) {
+                if (video.srcObject) {
+                    video.srcObject.getTracks().forEach(track => {
+                        track.stop();
+                        console.log('Camera track stopped');
+                    });
+                }
+                video.remove();
+            }
+            
+            // Remove instruction panel
+            const instructionPanel = document.getElementById('gesture-instructions');
+            if (instructionPanel) {
+                instructionPanel.remove();
+            }
+            
+            this.hands = null;
+            this.gestureDebounce = {};
+            this.showFeedback('Gestures stopped');
+        }
 
-            elements.gestureNav.addEventListener('click', () => {
-                state.isGestureActive = !state.isGestureActive;
-                this.toggleGestureNavigation(state.isGestureActive);
-                this.updateButtonState(elements.gestureNav, state.isGestureActive);
-            });
+        updateToolbar() {
+            const toolbar = document.getElementById('navigo-toolbar');
+            if (toolbar) {
+                toolbar.innerHTML = `
+                    <button id="voice-btn" style="padding: 10px 20px; border: none; border-radius: 6px; background: ${this.voiceActive ? '#28a745' : '#6a0dad'}; color: white; cursor: pointer;">
+                        ${this.voiceActive ? 'Stop Voice' : 'Start Voice'}
+                    </button>
+                    <button id="gesture-btn" style="padding: 10px 20px; border: none; border-radius: 6px; background: ${this.gestureActive ? '#28a745' : '#6a0dad'}; color: white; cursor: pointer;">
+                        ${this.gestureActive ? 'Stop Gestures' : 'Start Gestures'}
+                    </button>
+                    <button id="close-btn" style="padding: 10px 20px; border: none; border-radius: 6px; background: #dc3545; color: white; cursor: pointer;">Close</button>
+                `;
 
-            elements.closeToolbar.addEventListener('click', () => {
-                const toolbar = document.getElementById('navigo-toolbar');
-                if (toolbar) {
+                document.getElementById('voice-btn').onclick = () => this.toggleVoice();
+                document.getElementById('gesture-btn').onclick = () => this.toggleGestures();
+                document.getElementById('close-btn').onclick = () => {
+                    this.cleanup();
                     toolbar.remove();
-                    this.toolbarVisible = false;
-                    console.log('Toolbar closed');
-                }
-            });
-
-            elements.listMics?.addEventListener('click', async () => {
-                console.log('List Microphones clicked');
-                elements.listMics.disabled = true;
-                elements.listMics.textContent = 'Requesting Permission...';
-
-                const permissionGranted = await this.requestMicrophonePermission();
-
-                if (!permissionGranted) {
-                    elements.listMics.textContent = 'Permission Denied';
-                    setTimeout(() => {
-                        elements.listMics.disabled = false;
-                        elements.listMics.textContent = 'List Microphones';
-                    }, 2000);
-                } else {
-                    elements.listMics.disabled = false;
-                    elements.listMics.textContent = 'List Microphones';
-                }
-            });
-        }
-
-
-        updateButtonState(button, isActive) {
-            console.log('Updating button state:', isActive);
-            button.classList.toggle('active', isActive);
-            button.textContent = `${isActive ? 'Stop' : 'Start'} ${button.dataset.feature}`;
-
-            if (isActive) {
-                button.style.backgroundColor = '#28a745';
-            } else {
-                button.style.backgroundColor = '#007bff';
+                };
             }
         }
 
+        summarizePage() {
+            const text = document.body.innerText.slice(0, 500);
+            this.showFeedback(`Page Summary: ${text.slice(0, 100)}...`);
+        }
 
-        startGestureDetection(videoElement) {
-            const canvasElement = document.querySelector('.output_canvas');
-            const canvasCtx = canvasElement.getContext('2d');
-            let lastY = 0;
-            let frameCount = 0;
-            const FRAMES_TO_ANALYZE = 10;
-            const MOVEMENT_THRESHOLD = 50;
-
-            this.gestureDetectionInterval = setInterval(() => {
-                try {
-                    canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-
-                    const centerX = Math.floor(canvasElement.width / 2);
-                    const centerY = Math.floor(canvasElement.height / 2);
-                    const pixelData = canvasCtx.getImageData(centerX - 5, centerY - 5, 10, 10).data;
-
-                    let totalBrightness = 0;
-                    for (let i = 0; i < pixelData.length; i += 4) {
-                        const r = pixelData[i];
-                        const g = pixelData[i + 1];
-                        const b = pixelData[i + 2];
-                        totalBrightness += (r + g + b) / 3;
-                    }
-                    const avgBrightness = totalBrightness / (pixelData.length / 4);
-
-                    if (frameCount === 0) {
-                        lastY = avgBrightness;
-                    }
-
-                    const movement = avgBrightness - lastY;
-                    frameCount++;
-
-                    if (frameCount >= FRAMES_TO_ANALYZE) {
-                        if (Math.abs(movement) > MOVEMENT_THRESHOLD) {
-                            if (movement > 0) {
-                                console.log('⬇️ Downward movement detected');
-                                window.scrollBy({
-                                    top: window.innerHeight / 2,
-                                    behavior: 'smooth'
-                                });
-                                this.showFeedback('⬇️ Scrolling down');
-                            } else {
-                                console.log('⬆️ Upward movement detected');
-                                window.scrollBy({
-                                    top: -window.innerHeight / 2,
-                                    behavior: 'smooth'
-                                });
-                                this.showFeedback('⬆️ Scrolling up');
-                            }
-                        }
-                        frameCount = 0;
-                    }
-
-                    lastY = avgBrightness;
-
-                } catch (error) {
-                    console.error('Error in gesture detection:', error);
-                }
-            }, 100); // Check every 100ms
+        cleanup() {
+            this.stopVoice();
+            this.stopGestures();
         }
 
         showFeedback(message) {
-            console.log('Showing feedback:', message);
+            const existing = document.querySelector('.navigo-feedback');
+            if (existing) existing.remove();
+
             const feedback = document.createElement('div');
             feedback.className = 'navigo-feedback';
             feedback.textContent = message;
-
             feedback.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: #2196F3;
-                color: white;
-                padding: 15px 25px;
-                border-radius: 8px;
-                font-size: 18px;
-                z-index: 999999;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                animation: slideIn 0.3s ease forwards;
+                position: fixed; top: 20px; right: 20px; background: #2196F3;
+                color: white; padding: 15px 25px; border-radius: 8px;
+                font-size: 18px; z-index: 999999;
             `;
-
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideIn {
-                    from {
-                        transform: translateX(100%);
-                        opacity: 0;
-                    }
-                    to {
-                        transform: translateX(0);
-                        opacity: 1;
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-
-            const existingFeedback = document.querySelector('.navigo-feedback');
-            if (existingFeedback) {
-                existingFeedback.remove();
-            }
-
             document.body.appendChild(feedback);
 
-            setTimeout(() => {
-                feedback.style.opacity = '0';
-                feedback.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    feedback.remove();
-                    style.remove();
-                }, 300);
-            }, 3000);
-        }
-
-        async selectMicrophone(mic) {
-            console.log('Selected microphone:', mic);
-            this.showFeedback(`Selected: ${mic.label}`);
-
-            this.selectedMicrophone = mic;
-
-            const micItems = document.querySelectorAll('#micList li');
-            micItems.forEach(item => item.classList.remove('selected'));
-            const selectedItem = Array.from(micItems).find(item => item.dataset.deviceId === mic.deviceId);
-            if (selectedItem) {
-                selectedItem.classList.add('selected');
-            }
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        deviceId: { exact: mic.deviceId }
-                    }
-                });
-                this.showFeedback('Microphone test successful!');
-                stream.getTracks().forEach(track => track.stop());
-            } catch (error) {
-                console.error('Error testing microphone:', error);
-                this.showFeedback('Error testing microphone: ' + error.message);
-            }
-        }
-
-        async requestMicrophonePermission() {
-            try {
-                console.log('Requesting microphone permission...');
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                console.log('Microphone permission granted');
-
-                // Stop the stream right away as we just needed the permission
-                stream.getTracks().forEach(track => track.stop());
-
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const microphones = devices.filter(device => device.kind === 'audioinput');
-
-                console.log('Found microphones:', microphones);
-
-                if (microphones.length === 0) {
-                    this.showFeedback('No microphones found! Please connect a microphone.');
-                    return false;
-                }
-
-                const micList = document.getElementById('micList');
-                if (micList) {
-                    micList.innerHTML = '';
-                    microphones.forEach((mic, index) => {
-                        const li = document.createElement('li');
-                        li.textContent = mic.label || `Microphone ${index + 1}`;
-                        li.dataset.deviceId = mic.deviceId;
-                        li.addEventListener('click', () => this.selectMicrophone(mic));
-                        micList.appendChild(li);
-                    });
-                    document.getElementById('microphoneList').style.display = 'block';
-                }
-
-                this.showFeedback(`Found ${microphones.length} microphone(s). Please select one.`);
-                return true;
-            } catch (error) {
-                console.error('Error requesting microphone permission:', error);
-                this.showFeedback('Error: Could not access microphone. Please check permissions.');
-                return false;
-            }
-        }
-
-        loadSpeechController() {
-            // Make SpeechController available on the instance
-            this.SpeechController = class {
-                constructor() {
-                    console.log('SpeechController: Initializing...');
-
-                    this.createFeedbackElement();
-
-                    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-                        console.error('SpeechController: Speech recognition not supported');
-                        throw new Error('Speech recognition not supported in this browser');
-                    }
-
-                    try {
-                        this.recognition = new (window.webkitSpeechRecognition || window.SpeechRecognition)();
-                        this.isListening = false;
-                        this.commandMode = false;
-                        this.lastResult = '';
-
-                        this.commands = {
-                            'scroll down': () => {
-                                console.log('Executing: scroll down');
-                                window.scrollBy({
-                                    top: window.innerHeight / 2,
-                                    behavior: 'smooth'
-                                });
-                                this.showVisualFeedback('⬇️ Scrolling down');
-                            },
-                            'scroll up': () => {
-                                console.log('Executing: scroll up');
-                                window.scrollBy({
-                                    top: -(window.innerHeight / 2),
-                                    behavior: 'smooth'
-                                });
-                                this.showVisualFeedback('⬆️ Scrolling up');
-                            },
-                            'page down': () => {
-                                console.log('Executing: page down');
-                                window.scrollBy({
-                                    top: window.innerHeight,
-                                    behavior: 'smooth'
-                                });
-                                this.showVisualFeedback('⬇️ Moving down one page');
-                            },
-                            'page up': () => {
-                                console.log('Executing: page up');
-                                window.scrollBy({
-                                    top: -window.innerHeight,
-                                    behavior: 'smooth'
-                                });
-                                this.showVisualFeedback('⬆️ Moving up one page');
-                            },
-                            'bottom': () => {
-                                console.log('Executing: bottom');
-                                window.scrollTo({
-                                    top: document.documentElement.scrollHeight,
-                                    behavior: 'smooth'
-                                });
-                                this.showVisualFeedback('⬇️ Scrolling to bottom');
-                            },
-                            'top': () => {
-                                console.log('Executing: top');
-                                window.scrollTo({
-                                    top: 0,
-                                    behavior: 'smooth'
-                                });
-                                this.showVisualFeedback('⬆️ Scrolling to top');
-                            },
-                            'next': () => {
-                                console.log('Executing: next');
-                                if (window.navigationEngine) {
-                                    window.navigationEngine.focusNext();
-                                    this.showVisualFeedback('⏭️ Next element');
-                                }
-                            },
-                            'previous': () => {
-                                console.log('Executing: previous');
-                                if (window.navigationEngine) {
-                                    window.navigationEngine.focusPrevious();
-                                    this.showVisualFeedback('⏮️ Previous element');
-                                }
-                            },
-                            'click': () => {
-                                console.log('Executing: click');
-                                const focusedElement = document.querySelector(':focus');
-                                if (focusedElement) {
-                                    focusedElement.click();
-                                    this.showVisualFeedback('🖱️ Clicking element');
-                                } else {
-                                    this.showVisualFeedback('No element focused');
-                                }
-                            },
-                            'close': () => {
-                                console.log('Executing: close');
-                                if (window.opener) {
-                                    window.close();
-                                } else {
-                                    console.log('Unable to close the window. This window was not opened by a script.');
-                                    this.showVisualFeedback('Unable to close the window');
-                                }
-                            },
-                            'search for': (transcript) => this.handleSearch(transcript),
-                            'find': (transcript) => this.handleSearch(transcript),
-                            'search page': (transcript) => this.handleSearch(transcript)
-                        };
-
-                        this.setupRecognition();
-                        console.log('SpeechController initialized successfully');
-                    } catch (error) {
-                        console.error('Error initializing speech recognition:', error);
-                        throw error;
-                    }
-                }
-
-
-                handleSearch(transcript) {
-                    const searchCommands = ['search for', 'find', 'search page'];
-                    let searchQuery = transcript.toLowerCase();
-
-                    for (const cmd of searchCommands) {
-                        if (searchQuery.startsWith(cmd)) {
-                            searchQuery = searchQuery.substring(cmd.length).trim();
-                            break;
-                        }
-                    }
-
-                    if (!searchQuery) {
-                        this.showVisualFeedback('No search term provided');
-                        return;
-                    }
-
-                    let searchOverlay = document.getElementById('navigo-search-overlay');
-                    if (!searchOverlay) {
-                        searchOverlay = this.createSearchOverlay();
-                    }
-
-                    this.performPageSearch(searchQuery, searchOverlay);
-                }
-
-                createSearchOverlay() {
-                    const overlay = document.createElement('div');
-                    overlay.id = 'navigo-search-overlay';
-                    overlay.innerHTML = `
-                <div class="search-container">
-                    <div class="search-header">
-                        <span class="result-count"></span>
-                        <button class="close-search">×</button>
-                    </div>
-                    <div class="search-results"></div>
-                    <div class="search-controls">
-                        <button class="prev-result">Previous</button>
-                        <button class="next-result">Next</button>
-                    </div>
-                </div>
-            `;
-
-                    const style = document.createElement('style');
-                    style.textContent = `
-                #navigo-search-overlay {
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: #2c2c2c;
-                    border-radius: 8px;
-                    padding: 15px;
-                    z-index: 10000;
-                    color: white;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-                    font-family: Arial, sans-serif;
-                    min-width: 300px;
-                }
-                .search-container {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-                }
-                .search-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                .close-search {
-                    background: none;
-                    border: none;
-                    color: white;
-                    font-size: 20px;
-                    cursor: pointer;
-                }
-                .search-results {
-                    max-height: 200px;
-                    overflow-y: auto;
-                    margin: 10px 0;
-                }
-                .search-controls {
-                    display: flex;
-                    gap: 10px;
-                }
-                .search-controls button {
-                    padding: 5px 10px;
-                    border: none;
-                    border-radius: 4px;
-                    background: #4CAF50;
-                    color: white;
-                    cursor: pointer;
-                }
-                .search-match {
-                    background: yellow;
-                    color: black;
-                }
-                .search-match.current {
-                    background: #ff9800;
-                }
-            `;
-
-                    document.head.appendChild(style);
-                    document.body.appendChild(overlay);
-                    return overlay;
-                }
-
-                performPageSearch(query, overlay) {
-                    const matches = [];
-                    let currentIndex = -1;
-
-                    const regex = new RegExp(query, 'gi');
-                    const walker = document.createTreeWalker(
-                        document.body,
-                        NodeFilter.SHOW_TEXT,
-                        null,
-                        false
-                    );
-
-                    let node;
-                    while (node = walker.nextNode()) {
-                        const nodeText = node.textContent;
-                        let match;
-                        while ((match = regex.exec(nodeText)) !== null) {
-                            matches.push({
-                                node: node,
-                                index: match.index,
-                                text: match[0]
-                            });
-                        }
-                    }
-
-                    const resultCount = overlay.querySelector('.result-count');
-                    resultCount.textContent = `${matches.length} matches found`;
-
-                    matches.forEach((match, idx) => {
-                        const range = document.createRange();
-                        range.setStart(match.node, match.index);
-                        range.setEnd(match.node, match.index + match.text.length);
-
-                        const highlight = document.createElement('span');
-                        highlight.className = 'search-match';
-                        highlight.textContent = match.text;
-                        range.deleteContents();
-                        range.insertNode(highlight);
-                    });
-
-                    const prevButton = overlay.querySelector('.prev-result');
-                    const nextButton = overlay.querySelector('.next-result');
-
-                    const highlightCurrent = () => {
-                        document.querySelectorAll('.search-match.current').forEach(el => {
-                            el.classList.remove('current');
-                        });
-
-                        const element = document.querySelectorAll('.search-match')[currentIndex];
-                        if (element) {
-                            element.classList.add('current');
-                            element.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
-                        }
-                    };
-
-                    prevButton.onclick = () => {
-                        if (matches.length === 0) return;
-                        currentIndex = (currentIndex - 1 + matches.length) % matches.length;
-                        highlightCurrent();
-                    };
-
-                    nextButton.onclick = () => {
-                        if (matches.length === 0) return;
-                        currentIndex = (currentIndex + 1) % matches.length;
-                        highlightCurrent();
-                    };
-
-                    if (matches.length > 0) {
-                        currentIndex = 0;
-                        highlightCurrent();
-                    }
-                }
-
-                createFeedbackElement() {
-                    const style = document.createElement('style');
-                    style.textContent = `
-                        .voice-feedback-container {
-                            position: fixed;
-                            top: 20px;
-                            right: 20px;
-                            background: #2196F3;
-                            color: white;
-                            padding: 15px 25px;
-                            border-radius: 8px;
-                            font-size: 18px;
-                            z-index: 999999;
-                            transition: all 0.3s ease;
-                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                            display: none;
-                            font-family: Arial, sans-serif;
-                            max-width: 300px;
-                            text-align: center;
-                        }
-
-                        .voice-feedback-container.active {
-                            display: block;
-                            animation: slideIn 0.3s ease forwards;
-                        }
-
-                        .voice-feedback-container.command-mode {
-                            background: #4CAF50;
-                        }
-
-                        .voice-feedback-container.error {
-                            background: #f44336;
-                        }
-
-                        @keyframes slideIn {
-                            from {
-                                transform: translateX(100%);
-                                opacity: 0;
-                            }
-                            to {
-                                transform: translateX(0);
-                                opacity: 1;
-                            }
-                        }
-
-                        .voice-status-indicator {
-                            position: fixed;
-                            bottom: 20px;
-                            right: 20px;
-                            width: 50px;
-                            height: 50px;
-                            border-radius: 25px;
-                            background: #2196F3;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            z-index: 999999;
-                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                        }
-
-                        .voice-status-indicator::after {
-                            content: '🎤';
-                            font-size: 24px;
-                        }
-
-                        .voice-status-indicator.listening {
-                            animation: pulse 2s infinite;
-                        }
-
-                        @keyframes pulse {
-                            0% {
-                                transform: scale(1);
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                            }
-                            50% {
-                                transform: scale(1.1);
-                                box-shadow: 0 4px 20px rgba(33, 150, 243, 0.4);
-                            }
-                            100% {
-                                transform: scale(1);
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                            }
-                        }
-                    `;
-                    document.head.appendChild(style);
-
-                    const feedback = document.createElement('div');
-                    feedback.id = 'voice-feedback';
-                    feedback.className = 'voice-feedback-container';
-                    document.body.appendChild(feedback);
-
-                    const statusIndicator = document.createElement('div');
-                    statusIndicator.id = 'voice-status';
-                    statusIndicator.className = 'voice-status-indicator';
-                    document.body.appendChild(statusIndicator);
-                }
-
-                showVisualFeedback(message, type = 'info') {
-                    console.log(`💬 Feedback: ${message}`);
-                    const feedback = document.getElementById('voice-feedback');
-                    if (feedback) {
-                        feedback.textContent = message;
-                        feedback.className = `voice-feedback-container active ${type}`;
-                        feedback.style.display = 'block';
-
-                        setTimeout(() => {
-                            feedback.style.opacity = '0';
-                            setTimeout(() => {
-                                feedback.style.display = 'none';
-                                feedback.style.opacity = '1';
-                            }, 300);
-                        }, 2000);
-                    }
-                }
-
-                setupRecognition() {
-                    this.recognition.continuous = true;
-                    this.recognition.interimResults = true;
-                    this.recognition.lang = 'en-US';
-                    this.recognition.maxAlternatives = 5; // Increased for better matching
-
-                    this.recognition.onstart = () => {
-                        console.log('🎤 Recognition started');
-                        this.isListening = true;
-                        this.showVisualFeedback('🎤 Listening... Say "Hey Navigo"');
-                    };
-
-                    this.recognition.onresult = (event) => {
-                        const last = event.results.length - 1;
-
-                        for (let i = 0; i < event.results[last].length; i++) {
-                            const transcript = event.results[last][i].transcript.trim().toLowerCase();
-                            const confidence = event.results[last][i].confidence;
-
-                            console.log(`🎤 Heard (${confidence.toFixed(2)}): "${transcript}"`);
-
-                            if (this.isWakeWord(transcript)) {
-                                console.log('🎯 Wake word detected in alternative', i);
-                                this.handleWakeWord();
-                                return;
-                            }
-                        }
-
-                        if (this.commandMode) {
-                            const transcript = event.results[last][0].transcript.trim().toLowerCase();
-                            console.log('⚡ Processing command:', transcript);
-                            this.processCommand(transcript);
-                        } else {
-                            console.log('❌ Not in command mode. Say "Hey Navigo" first!');
-                            this.showVisualFeedback('Say "Hey Navigo" to start');
-                        }
-                    };
-
-                    this.recognition.onerror = (event) => {
-                        console.error('❌ Recognition error:', event.error);
-                        this.showVisualFeedback(`Error: ${event.error}`);
-                    };
-
-                    this.recognition.onend = () => {
-                        console.log('🛑 Recognition ended');
-                        if (this.isListening) {
-                            console.log('🔄 Restarting recognition');
-                            try {
-                                this.recognition.start();
-                            } catch (error) {
-                                console.error('❌ Error restarting recognition:', error);
-                            }
-                        }
-                    };
-                }
-
-                handleWakeWord() {
-                    console.log('🎯 Wake word detected - activating command mode');
-                    this.commandMode = true;
-                    this.showVisualFeedback('🎯 Hey Navigo activated! Ready for commands...', 'command');
-
-                    if (this.commandModeTimeout) {
-                        clearTimeout(this.commandModeTimeout);
-                    }
-
-                    this.commandModeTimeout = setTimeout(() => {
-                        if (this.commandMode) {
-                            this.commandMode = false;
-                            console.log('⏰ Command mode timed out');
-                            this.showVisualFeedback('⏰ Command mode timed out. Say "Hey Navigo" to start again.');
-                        }
-                    }, 15000);
-                }
-
-                processCommand(transcript) {
-                    console.log('⚡ Processing command:', transcript);
-                    let commandExecuted = false;
-
-                    const commands = {
-                        'scroll down': () => {
-                            console.log('📜 Executing: scroll down');
-                            window.scrollBy({
-                                top: window.innerHeight / 2,
-                                behavior: 'smooth'
-                            });
-                            this.showVisualFeedback('⬇️ Scrolling down');
-                            commandExecuted = true;
-                        },
-                        'scroll up': () => {
-                            console.log('📜 Executing: scroll up');
-                            window.scrollBy({
-                                top: -(window.innerHeight / 2),
-                                behavior: 'smooth'
-                            });
-                            this.showVisualFeedback('⬆️ Scrolling up');
-                            commandExecuted = true;
-                        },
-                        'page down': () => {
-                            console.log('📜 Executing: page down');
-                            window.scrollBy({
-                                top: window.innerHeight,
-                                behavior: 'smooth'
-                            });
-                            this.showVisualFeedback('⬇️ Moving down one page');
-                            commandExecuted = true;
-                        },
-                        'page up': () => {
-                            console.log('📜 Executing: page up');
-                            window.scrollBy({
-                                top: -window.innerHeight,
-                                behavior: 'smooth'
-                            });
-                            this.showVisualFeedback('⬆️ Moving up one page');
-                            commandExecuted = true;
-                        },
-                        'top': () => {
-                            console.log('📜 Executing: go to top');
-                            window.scrollTo({
-                                top: 0,
-                                behavior: 'smooth'
-                            });
-                            this.showVisualFeedback('⬆️ Going to top');
-                            commandExecuted = true;
-                        },
-                        'bottom': () => {
-                            console.log('📜 Executing: go to bottom');
-                            window.scrollTo({
-                                top: document.documentElement.scrollHeight,
-                                behavior: 'smooth'
-                            });
-                            this.showVisualFeedback('⬇️ Going to bottom');
-                            commandExecuted = true;
-                        },
-                        'close': () => {
-                            console.log('📜 Executing: close');
-                            try {
-                                // Multiple strategies to close window
-                                if (window.close) {
-                                    window.close();
-                                }
-
-                                // Fallback method
-                                if (!window.closed) {
-                                    window.open('', '_self').close();
-                                }
-
-                                // If still not closed
-                                if (!window.closed) {
-                                    // Browser-specific alternatives
-                                    if (window.history && window.history.length > 1) {
-                                        window.history.back();
-                                    } else {
-                                        alert('Cannot automatically close this tab. Please close manually.');
-                                    }
-                                }
-                            } catch (error) {
-                                console.error('Window close error:', error);
-                                alert('Failed to close window. Please close manually.');
-                            }
-                        }
-
-                    };
-
-                    const cleanTranscript = transcript.toLowerCase().trim();
-                    console.log('🎯 Clean transcript:', cleanTranscript);
-
-                    for (const [command, action] of Object.entries(commands)) {
-                        if (cleanTranscript.includes(command)) {
-                            console.log(`🎯 Found command: ${command}`);
-                            try {
-                                action();
-                                console.log(`✅ Executed: ${command}`);
-                            } catch (error) {
-                                console.error(`❌ Error executing ${command}:`, error);
-                                this.showVisualFeedback(`Error executing: ${command}`);
-                            }
-                            break;
-                        }
-                    }
-
-                    if (!commandExecuted) {
-                        console.log('❌ Command not recognized:', cleanTranscript);
-                        this.showVisualFeedback(`Command not recognized: "${cleanTranscript}"`);
-                    }
-                }
-
-                start() {
-                    console.log('Starting speech recognition');
-                    try {
-                        this.recognition.start();
-                        this.showVisualFeedback('🎤 Voice navigation started');
-                    } catch (error) {
-                        console.error('Error starting recognition:', error);
-                        throw error;
-                    }
-                }
-
-                stop() {
-                    console.log('Stopping speech recognition');
-                    this.isListening = false;
-                    this.commandMode = false;
-                    try {
-                        this.recognition.stop();
-                        this.showVisualFeedback('🛑 Voice navigation stopped');
-                    } catch (error) {
-                        console.error('Error stopping recognition:', error);
-                    }
-                }
-
-                isWakeWord(transcript) {
-                    console.log('🔍 Checking wake word in:', transcript);
-
-                    const wakeWords = [
-                        'hey navigo',
-                        'hey navigate',
-                        'hey navigator',
-                        'hey now we go',
-                        'hey now ago',
-                        'hey now to go',
-                        'hey now vehicle',
-                        'hey now we call',
-                        'hey novigo',
-                        'hey navigate oh',
-                        'hay navigo',
-                        'hey navy go',
-                        'hey now we',
-                        'hey now the go',
-                        'hey now let\'s go',
-                        'a navigo',
-                        'hey now ago',
-                        'hey now vehicle',
-                        'hey now',
-                        'hey nav',
-                        'hey navi',
-                        'hey navigon',
-                        'hey navigor',
-                        'hey navig',
-                        'hey nev',
-                        'hey nav e',
-                        'hey nav i',
-                        'hey now v',
-                        'hey now we',
-                        'hey now n',
-                        'hey now nav'
-                    ];
-
-                    for (const wake of wakeWords) {
-                        if (transcript.includes(wake)) {
-                            console.log('🎯 Wake word matched:', wake);
-                            return true;
-                        }
-                    }
-
-                    const words = transcript.split(' ');
-                    const lastTwoWords = words.slice(-2).join(' ');
-                    const lastThreeWords = words.slice(-3).join(' ');
-
-                    if (lastTwoWords.includes('nav') ||
-                        lastTwoWords.includes('now') ||
-                        lastTwoWords.includes('hey') ||
-                        lastThreeWords.includes('hey') ||
-                        lastThreeWords.includes('nav') ||
-                        lastThreeWords.includes('now we')) {
-                        console.log('🎯 Partial wake word match:', lastThreeWords);
-                        return true;
-                    }
-
-                    return false;
-                }
-            };
-        }
-
-        async handleSummarizeClick() {
-            try {
-                this.createLoadingIndicator();
-                console.log('Starting page summarization...');
-                this.updateLoadingStatus('Analyzing page content...');
-
-                const { summarizer } = await import(chrome.runtime.getURL('modules/aisummarizer.js'));
-
-                this.updateLoadingStatus('Extracting page content...');
-                let text;
-                if (window.location.hostname.includes('wikipedia.org')) {
-                    const content = document.querySelector('#mw-content-text');
-                    if (content) {
-                        this.updateLoadingStatus('Processing Wikipedia content...');
-                        const clone = content.cloneNode(true);
-                        const removeSelectors = [
-                            '.reference',
-                            '.mw-editsection',
-                            '.mw-references-wrap',
-                            '.navigation-not-searchable',
-                            'table',
-                            '.thumb',
-                            '.infobox',
-                            '.sidebar'
-                        ];
-                        removeSelectors.forEach(selector => {
-                            clone.querySelectorAll(selector).forEach(el => el.remove());
-                        });
-                        text = clone.textContent;
-                    }
-                } else {
-                    this.updateLoadingStatus('Extracting main content...');
-                    const mainContent = document.querySelector('main, article, .content, #content');
-                    text = mainContent ? mainContent.textContent : document.body.textContent;
-                }
-
-                if (!text) {
-                    throw new Error('No content found to summarize');
-                }
-
-                this.updateLoadingStatus('Cleaning text...');
-                text = text
-                    .replace(/\s+/g, ' ')
-                    .replace(/\[[0-9]*\]/g, '')
-                    .trim();
-
-                const maxLength = 8000;
-                if (text.length > maxLength) {
-                    text = text.substring(0, maxLength) + '...';
-                }
-
-                this.updateLoadingStatus('Generating AI summary...');
-                const summary = await summarizer.summarizeText(text);
-
-                this.removeLoadingIndicator();
-                this.displaySummary(summary);
-
-            } catch (error) {
-                console.error('Summarization failed:', error);
-                this.removeLoadingIndicator();
-                this.showFeedback(`Error: ${error.message}`);
-            }
-        }
-
-        displaySummary(summary) {
-            this.removeLoadingIndicator();
-
-            const existingSummary = document.getElementById('page-summary-container');
-            if (existingSummary) {
-                existingSummary.remove();
-            }
-
-            const container = document.createElement('div');
-            container.id = 'page-summary-container';
-            container.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                width: 350px;
-                max-height: 80vh;
-                background: white;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                z-index: 10000;
-                overflow-y: auto;
-                font-family: Arial, sans-serif;
-                animation: slidein 0.3s ease-out;
-            `;
-
-            const header = document.createElement('div');
-            header.style.cssText = `
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 15px;
-                padding-bottom: 10px;
-                border-bottom: 1px solid #eee;
-            `;
-
-            const title = document.createElement('h3');
-            title.textContent = 'Page Summary';
-            title.style.margin = '0';
-
-            const closeButton = document.createElement('button');
-            closeButton.innerHTML = '&times;';
-            closeButton.style.cssText = `
-                background: none;
-                border: none;
-                font-size: 24px;
-                cursor: pointer;
-                padding: 0 5px;
-                color: #666;
-            `;
-
-            closeButton.onclick = () => {
-                container.remove();
-                this.removeLoadingIndicator(); // Ensure loading indicator is removed
-                const style = document.getElementById('summary-styles');
-                if (style) style.remove();
-            };
-
-            header.appendChild(title);
-            header.appendChild(closeButton);
-            container.appendChild(header);
-
-            const content = document.createElement('div');
-            content.style.cssText = `
-                line-height: 1.5;
-                color: #333;
-            `;
-            content.innerHTML = summary.split('\n').map(point => `<p>${point}</p>`).join('');
-            container.appendChild(content);
-
-            const style = document.createElement('style');
-            style.id = 'summary-styles';
-            style.textContent = `
-                @keyframes slidein {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-            `;
-            document.head.appendChild(style);
-            document.body.appendChild(container);
-        }
-
-        createLoadingIndicator() {
-            const existing = document.getElementById('ai-summary-loading');
-            if (existing) existing.remove();
-
-            const loader = document.createElement('div');
-            loader.id = 'ai-summary-loading';
-            loader.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: white;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                z-index: 10000;
-                font-family: Arial, sans-serif;
-                min-width: 250px;
-            `;
-
-            const spinnerContainer = document.createElement('div');
-            spinnerContainer.style.cssText = `
-                display: flex;
-                align-items: center;
-                margin-bottom: 15px;
-            `;
-
-            const spinner = document.createElement('div');
-            spinner.style.cssText = `
-                width: 24px;
-                height: 24px;
-                border: 3px solid #f3f3f3;
-                border-top: 3px solid #3498db;
-                border-radius: 50%;
-                margin-right: 10px;
-                animation: spin 1s linear infinite;
-            `;
-
-            const statusText = document.createElement('div');
-            statusText.id = 'ai-summary-status';
-            statusText.style.cssText = `
-                color: #666;
-                font-size: 14px;
-            `;
-
-            const progressBar = document.createElement('div');
-            progressBar.style.cssText = `
-                width: 100%;
-                height: 4px;
-                background: #f3f3f3;
-                border-radius: 2px;
-                overflow: hidden;
-            `;
-
-            const progress = document.createElement('div');
-            progress.style.cssText = `
-                width: 0%;
-                height: 100%;
-                background: #3498db;
-                transition: width 0.3s ease;
-                animation: progress 2s infinite;
-            `;
-
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                @keyframes progress {
-                    0% { width: 0%; }
-                    50% { width: 100%; }
-                    100% { width: 0%; }
-                }
-            `;
-
-            progressBar.appendChild(progress);
-            spinnerContainer.appendChild(spinner);
-            spinnerContainer.appendChild(statusText);
-            loader.appendChild(spinnerContainer);
-            loader.appendChild(progressBar);
-            document.head.appendChild(style);
-            document.body.appendChild(loader);
-        }
-
-        updateLoadingStatus(message) {
-            const status = document.getElementById('ai-summary-status');
-            if (status) {
-                status.textContent = message;
-            }
-        }
-
-        removeLoadingIndicator() {
-            const loader = document.getElementById('ai-summary-loading');
-            if (loader) {
-                loader.remove();
-            }
+            setTimeout(() => feedback.remove(), 3000);
         }
     }
 
-    console.log('Content script loaded - creating new controller');
     window.navigoController = new ContentController();
+    console.log('Navigo Controller initialized and ready');
 }

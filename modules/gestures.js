@@ -412,6 +412,13 @@ function getFocusableElements() {
 
 function showGestureFeedback(message) {
     console.log('Showing feedback:', message);
+    
+    // Remove any existing feedback
+    const existingFeedback = document.querySelector('.gesture-feedback');
+    if (existingFeedback) {
+        existingFeedback.remove();
+    }
+    
     const feedback = document.createElement('div');
     feedback.className = 'gesture-feedback';
     feedback.textContent = message;
@@ -426,24 +433,33 @@ function showGestureFeedback(message) {
         z-index: 999999;
         font-family: Arial, sans-serif;
         animation: fadeInOut 0.5s ease-in-out;
+        max-width: 300px;
+        text-align: center;
     `;
     document.body.appendChild(feedback);
     
     setTimeout(() => {
         feedback.style.animation = 'fadeOut 0.5s ease-in-out';
         setTimeout(() => feedback.remove(), 500);
-    }, 2000);
+    }, 2500);
 }
 
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes fadeInOut {
-        0% { opacity: 0; transform: translateY(-20px); }
-        100% { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes fadeOut {
-        0% { opacity: 1; transform: translateY(0); }
-        100% { opacity: 0; transform: translateY(-20px); }
-    }
-`;
-document.head.appendChild(style);
+// Export the main function
+export { initializeGestures, showGestureFeedback };
+
+// Add styles if not already present
+if (!document.getElementById('gesture-feedback-styles')) {
+    const style = document.createElement('style');
+    style.id = 'gesture-feedback-styles';
+    style.textContent = `
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateY(-20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+    `;
+    document.head.appendChild(style);
+}

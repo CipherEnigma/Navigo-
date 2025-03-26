@@ -4,149 +4,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accessibility Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="lang.js"></script>
-    <script src="dashboard.js"></script>
+    <title>Navigo Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            flex: 1;
+            margin: 0 10px;
+        }
+    </style>
 </head>
 
-<body
-    class="bg-gradient-to-br from-gray-900 via-gray-800 to-indigo-900 min-h-screen flex justify-center items-center p-4">
-    <div class="w-full max-w-md bg-gray-800/70 backdrop-blur-md rounded-2xl shadow-2xl overflow-hidden">
-        <!-- Header -->
-        <header class="flex items-center p-4 border-b border-gray-700">
-            <a href="popup/popup.html" class="mr-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-300 hover:text-indigo-200"
-                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-            </a>
-            <h1 class="text-2xl font-bold text-indigo-300 flex-grow">
-                Accessibility Dashboard
-            </h1>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 hover:text-indigo-300" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            </svg>
-        </header>
-
-        <section class="p-6 border-t border-gray-700">
-            <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h3m-3-8a9 9 0 01-9 9m9-9a9 9 0 00-9-9m0 9h9m-9 0c0 5.523 4.477 10 10 10m0-10a9.963 9.963 0 014.708-8.458" />
-                </svg>
-                <h2 class="text-xl font-semibold text-indigo-300">Language Selection</h2>
+<body>
+    <div class="container">
+        <h1>Navigo Dashboard</h1>
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Voice Commands</h3>
+                <p>Commands available: scroll up, scroll down, go back, go forward, reload, top, bottom</p>
             </div>
-
-            <div>
-                <label class="block text-gray-400 mb-2">Choose Language</label>
-                <div class="relative">
-                    <select id="languageSelector"
-                        class="w-full bg-gray-700 text-gray-200 py-2 px-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 appearance-none">
-                        <!-- Languages will be dynamically populated by JavaScript -->
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                            <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                        </svg>
-                    </div>
-                </div>
+            <div class="stat-card">
+                <h3>Gestures</h3>
+                <p>Point up/down to scroll, left/right to navigate</p>
             </div>
-        </section>
-
-        <!-- Speech Controls -->
-        <section class="p-6">
-            <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                </svg>
-                <h2 class="text-xl font-semibold text-indigo-300">Speech Controls</h2>
-            </div>
-
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-gray-400 mb-1">Select Voice</label>
-                    <div class="relative mb-2">
-                        <select
-                            class="w-full bg-gray-700 text-gray-200 py-2 px-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-indigo-500 appearance-none">
-                            <option>Default Voice</option>
-                            <option>Female Voice</option>
-                            <option>Male Voice</option>
-                        </select>
-                        <div
-                            class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
-                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="flex items-center text-gray-400 mb-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-400" fill="none"
-                            viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                        Adjust Speech Rate
-                    </label>
-                    <input type="range" min="0.5" max="2" step="0.1" value="1"
-                        class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
-                </div>
-            </div>
-        </section>
-
-        <!-- Gesture & Eye Tracking -->
-        <section class="p-6 border-t border-gray-700">
-            <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                <h2 class="text-xl font-semibold text-indigo-300">Gesture & Eye Tracking</h2>
-            </div>
-
-            <button
-                class="w-full py-3 rounded-md bg-indigo-500 text-white hover:bg-indigo-600 transition-colors duration-300">
-                Calibrate Gestures
-            </button>
-        </section>
-
-        <!-- Shortcut Commands -->
-        <section class="p-6 border-t border-gray-700">
-            <div class="flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 mr-3" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h2 class="text-xl font-semibold text-indigo-300">Shortcut Commands</h2>
-            </div>
-
-            <ul class="space-y-2 text-gray-400 bg-gray-700/50 p-4 rounded-md">
-                <li class="flex items-center">
-                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></span>
-                    Say "Start" to enable Speech-to-Text
-                </li>
-                <li class="flex items-center">
-                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></span>
-                    Say "Stop" to disable Speech-to-Text
-                </li>
-                <li class="flex items-center">
-                    <span class="w-2 h-2 bg-indigo-500 rounded-full mr-3"></span>
-                    Use gestures to scroll or navigate
-                </li>
-            </ul>
-        </section>
+        </div>
+        <p>Use the extension popup to activate voice or gesture navigation on any webpage.</p>
     </div>
 </body>
 
