@@ -23,6 +23,9 @@ Navigo addresses the problem of fragmented assistive technologies by integrating
 
 Navigo’s all-in-one solution enhances the web browsing experience and ensures a more inclusive digital environment for individuals with diverse accessibility needs.
 
+## Demo video- 
+ [Click here](navigo_demo.mp4)
+
 ## Key Features
 
 ### Voice Navigation
